@@ -22,6 +22,18 @@ export function AiSetupModal({ platform, onClose }: Props) {
       return next
     })
 
+  const toggleGroup = (ids: string[], selectAll: boolean) =>
+    setExcluded((prev) => {
+      const next = new Set(prev)
+      for (const id of ids) {
+        if (selectAll) next.delete(id)
+        else next.add(id)
+      }
+      return next
+    })
+
+  const selectedCount = groups.reduce((n, g) => n + g.tools.filter((t) => !excluded.has(t.id)).length, 0)
+
   const steps = [
     { command: bootstrap, note: 'Install Claude Code — the only manual install.' },
     { command: 'claude', note: 'Open a NEW terminal (so PATH is fresh), start Claude Code, then paste the prompt below.' },
@@ -51,9 +63,19 @@ export function AiSetupModal({ platform, onClose }: Props) {
           <p className="text-xs font-medium text-fg">
             Included tools <span className="font-normal text-fg-subtle">— untick anything you don’t want; the prompt updates and tells the AI to leave it alone.</span>
           </p>
-          {groups.map((group) => (
+          {groups.map((group) => {
+            const groupAllSelected = group.tools.every((t) => !excluded.has(t.id))
+            return (
             <div key={group.id}>
-              <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">{group.title}</p>
+              <div className="mb-1 flex items-center gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">{group.title}</p>
+                <button
+                  onClick={() => toggleGroup(group.tools.map((t) => t.id), !groupAllSelected)}
+                  className="text-[11px] text-fg-subtle underline decoration-dotted underline-offset-2 transition-colors hover:text-fg cursor-pointer"
+                >
+                  {groupAllSelected ? 'unselect all' : 'select all'}
+                </button>
+              </div>
               <div className="grid grid-cols-1 gap-x-3 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
                 {group.tools.map((tool) => (
                   <label key={tool.id} className="flex cursor-pointer items-center gap-1.5 text-xs text-fg-muted hover:text-fg">
@@ -68,10 +90,17 @@ export function AiSetupModal({ platform, onClose }: Props) {
                 ))}
               </div>
             </div>
-          ))}
+            )
+          })}
         </div>
 
-        <CommandBlock command={prompt} label="Copy AI setup prompt" multiline />
+        {selectedCount > 0 ? (
+          <CommandBlock command={prompt} label="Copy AI setup prompt" multiline />
+        ) : (
+          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+            Select at least one tool — the prompt has nothing to install.
+          </p>
+        )}
       </div>
     </Modal>
   )
