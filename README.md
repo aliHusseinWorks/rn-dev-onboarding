@@ -1,8 +1,8 @@
 # React Native Dev Setup
 
-A single-page, click-driven launcher that takes a fresh Mac/Windows/Linux machine to a full React Native stack. It detects the visitor's OS/architecture and, per tool, either copies the exact install **command**, opens the correct **download**, or shows a **modal** with copyable setup steps. Progress is saved in the browser.
+A single-page, click-driven launcher that takes a fresh Mac/Windows/Linux machine to a full React Native stack. It detects the visitor's OS/architecture and, per tool, either copies the exact install **command**, opens the correct **download**, or shows a **modal** with copyable setup steps. A one-paste **Detect installed** scan ticks off tools already on the machine. Progress is saved in the browser.
 
-Built with Vite + React + TypeScript + Tailwind CSS v4. No backend — all state is in `localStorage`.
+Built with Vite + React + TypeScript + Tailwind CSS v4. Checklist state lives in `localStorage`; the only server-side piece is a single Cloudflare Pages Function (the detect-scan relay, see below).
 
 ## Develop
 
@@ -56,16 +56,26 @@ Helpers at the top of the file keep entries terse:
 
 Add a **category** by appending to `CATEGORIES` (id, title, description, `accent` hex, order). The accent colors the category's icons and rail.
 
+## Detect installed tools
+
+The **Detect installed** button generates a readable scan script (PowerShell on Windows, POSIX sh on macOS/Linux). The user pastes it into their terminal once; it checks each selected tool (PATH lookup, install-dir existence, Windows Store package) and reports back — the page polls and ticks the checkboxes live. The modal shows exactly which tools are checked and how, with include/exclude checkboxes.
+
+**Privacy:** the only data that leaves the machine is a one-time pairing code, the platform id (e.g. `mac-arm`), and the ids of tools found. Codes are single-use and expire after 10 minutes; the relay stores results at most that long.
+
+Detection specs live in `src/lib/detect.ts` (`DETECT_SPECS` — separate from `tools.ts` on purpose). Tools without a spec (Claude Code plugins, MCP servers, per-project prompts) are listed in the modal as not scannable.
+
+The relay lives in `functions/report/[code].ts` and deploys **with the site** as a Cloudflare Pages Function — same origin, so the deployed site needs zero configuration. If the relay is unreachable (local `pnpm dev` without wrangler, or before the KV namespace exists) the feature degrades gracefully: the script prints a `RN-ONBOARD/1 …` line the user pastes back manually.
+
+**Local full flow:** `pnpm build && npx wrangler pages dev dist` (serves site + relay on :8788 with a local KV), or run `pnpm dev` alongside it — the Vite dev server proxies `/report` to :8788.
+
 ## How versions are handled
 
 Cards install the **latest** version, resolved when the visitor runs the command — nothing is pinned into the site, so it never goes stale. To match a specific project's versions, the site installs version *managers* (fnm for Node, Corepack for pnpm); running `fnm use` / `pnpm install` inside a cloned repo then snaps to that repo's `.nvmrc` / `packageManager` / lockfiles. The one deliberate pin is **JDK 17**, which React Native requires specifically.
 
-## Deploy (free, no custom domain)
+## Deploy (Cloudflare Pages — free, fixed named domain)
 
-Deploys are set up for **GitHub Pages** via `.github/workflows/deploy.yml`:
+The site + detect relay deploy together to **Cloudflare Pages**: <https://rn-dev-onboarding.pages.dev>, via Cloudflare's git integration — every push to `main` is built (`pnpm build`) and deployed by Cloudflare, with build logs, deploy history, rollbacks, and per-branch preview URLs. Bindings (the `DETECT_KV` namespace) live in `wrangler.toml`.
 
-1. Push this repo to GitHub.
-2. Repo **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Every push to `main` builds and publishes to `https://<username>.github.io/<repo>/`.
+Recreating from scratch on a new account: `npx wrangler login`, `npx wrangler kv namespace create DETECT_KV` (paste the id into `wrangler.toml`), then dashboard → Workers & Pages → Create → Pages → Import an existing Git repository (build command `pnpm build`, output `dist`). Emergency manual deploy: `pnpm build && npx wrangler pages deploy dist` — avoid routinely; it ships your working tree, not a commit.
 
-The Vite `base` is `./` (relative), so the same build also works as-is on Netlify or Vercel (drag-and-drop the `dist/` folder, or point either at the repo).
+The Vite `base` is `./` (relative), so the static build also works on Netlify/Vercel/GitHub Pages — but the live detect flow needs the Pages Function, so only the plain checklist (with manual result paste) works there.
