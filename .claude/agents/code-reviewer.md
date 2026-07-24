@@ -23,6 +23,6 @@ Check every changed hunk against:
 - Broken accessibility: icon buttons without `aria-label`, toggles without `aria-pressed`/`aria-expanded`, keyboard traps, focus-visible regressions.
 
 **Security**
-- External links without `rel="noreferrer"` on `target="_blank"`; any use of `dangerouslySetInnerHTML`; user/query input interpolated into generated scripts or clipboard payloads without care; secrets or tokens of any kind (this bundle is public); fetches to endpoints that will fail CORS on GitHub Pages.
+- External links without `rel="noreferrer"` on `target="_blank"`; any use of `dangerouslySetInnerHTML`; user/query input interpolated into generated scripts or clipboard payloads without care; secrets or tokens of any kind (this bundle is public); fetches to any origin other than the page's own — the app is same-origin by design.
 
 Report findings as a short list ordered by severity, each with `file:line`, what's wrong, and the minimal fix. If the diff is clean, say so plainly.

@@ -2,14 +2,12 @@ import { checksFor, describeChecks, DETECT_SPECS, detectGroups, RESULT_PREFIX, t
 import { PLATFORM_INFO, type PlatformId } from './platform'
 
 // Relay endpoint. The relay deploys with the site as a Cloudflare Pages
-// Function (functions/report/[code].ts), so by default the page talks to its
-// own origin — production needs no configuration. VITE_DETECT_ENDPOINT
-// overrides it (harness/tests); with neither (SSR, plain node) the modal
-// falls back to manual-paste mode: the script skips the POST and the user
-// pastes the RN-ONBOARD/1 line instead.
+// Function (functions/report/[code].ts), so the page talks to its own
+// origin — no configuration anywhere. Outside a browser (SSR, node) it is
+// undefined and the modal falls back to manual-paste mode: the script skips
+// the POST and the user pastes the RN-ONBOARD/1 line instead.
 export const DETECT_ENDPOINT: string | undefined =
-  (import.meta.env.VITE_DETECT_ENDPOINT as string | undefined)?.replace(/\/+$/, '') ||
-  (typeof location !== 'undefined' ? location.origin : undefined)
+  typeof location !== 'undefined' ? location.origin : undefined
 
 // One-time pairing code: 12 chars of [a-z0-9] via rejection sampling
 // (~62 bits), matching the worker's ^[a-z0-9]{10,32}$.

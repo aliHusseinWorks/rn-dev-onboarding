@@ -26,7 +26,7 @@ Despite the repo name, this is **not a React Native mobile app**. It is a single
 - Deferred an idea or left a known gap → add it to `TODO.md`; tick items you completed.
 - Changed structure or stack → update `docs/ARCHITECTURE.md`.
 
-**Workflow gate:** substantive features run the `code-reviewer` and `consistency-checker` agents (`.claude/agents/`) before the session ends; fix what they find.
+**Workflow gates** (agents in `.claude/agents/`): substantive features start with the `architect` agent (design fit before code) and end with `code-reviewer` + `consistency-checker`; any change touching the relay, generated scripts, storage, or external input also runs `security-reviewer`. Fix what they find before the session ends.
 
 ## Project facts
 

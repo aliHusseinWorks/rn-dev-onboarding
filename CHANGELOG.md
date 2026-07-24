@@ -1,6 +1,6 @@
 # Changelog
 
-Newest first. One line per user-visible change; grouped Added / Changed / Fixed.
+Newest first. One line per user-visible change; grouped Added / Changed / Removed / Fixed.
 
 ## Unreleased
 
@@ -10,6 +10,11 @@ Newest first. One line per user-visible change; grouped Added / Changed / Fixed.
 - Detect relay as a Cloudflare Pages Function with single-use, 10-minute pairing codes ([0002](docs/decisions/0002-same-origin-relay-on-cloudflare-pages.md), [0003](docs/decisions/0003-single-use-pairing-codes-with-tombstone.md)).
 - `--warning` design token (amber, light + dark variants).
 - Living docs system: `docs/decisions/`, this changelog, `docs/ARCHITECTURE.md`, `TODO.md`; also scaffolded by the team setup prompt ([0004](docs/decisions/0004-living-docs-system.md)).
+- `architect` and `security-reviewer` agents, wired into the CLAUDE.md workflow gates and the team setup prompt ([0006](docs/decisions/0006-architect-and-security-reviewer-agents.md)).
+
+### Removed
+
+- `VITE_DETECT_ENDPOINT` override (plus `.env.example`, `vite-env.d.ts`) — nothing consumed it after the same-origin move; the relay endpoint is always the page's own origin.
 
 ### Changed
 

@@ -53,8 +53,10 @@ Create this structure:
 │   ├── rn-screen/SKILL.md
 │   └── api-integration/SKILL.md
 ├── agents/
+│   ├── architect.md
 │   ├── code-reviewer.md
-│   └── consistency-checker.md
+│   ├── consistency-checker.md
+│   └── security-reviewer.md
 └── commands/
     ├── new-feature.md
     └── fix-bug.md
@@ -79,7 +81,7 @@ CLAUDE.md must encode these non-negotiable rules for every future session, state
 CLAUDE.md must also encode the docs contract, stated as rules:
 - Read before: check docs/ARCHITECTURE.md before writing code, adding a module, or choosing a library/pattern; check docs/decisions/ before revisiting a past choice. (Work items live in Jira, not in a repo file.)
 - Update after, in the same session: shipped a feature/fix → one line in CHANGELOG.md under Unreleased; made a decision with the user → new numbered file in docs/decisions/ (never edit old ones, supersede them); changed structure or stack → update docs/ARCHITECTURE.md.
-- Workflow gate: substantive features run the code-reviewer and consistency-checker agents before the session ends.
+- Workflow gates: substantive features start with the architect agent (design before code) and end with code-reviewer + consistency-checker; changes touching auth, storage, networking, deep links, or WebViews also run security-reviewer.
 
 Keep CLAUDE.md itself short: the six rules, the docs contract, and quick facts (package manager, run commands for iOS and Android, lint command) — only if not already documented. Everything structural goes in docs/ARCHITECTURE.md, which you write from Phase 1: folder map, navigation and state libraries, theme file locations all new UI must consume, data flow, and a "when you need X, use Y, never Z" table of the repo's actual patterns. Seed CHANGELOG.md with an empty Unreleased section, and write docs/decisions/0001 recording this workspace setup itself (what was created and why). If any of these docs already exist, extend rather than recreate them.
 
@@ -88,9 +90,11 @@ Skills (each SKILL.md: YAML frontmatter with name + description, then instructio
 - rn-screen: creating and registering a screen exactly the way existing screens are registered, using the same navigation typing and safe-area handling already present.
 - api-integration: adding an API call through the existing client and error-handling pattern only — never a new fetch wrapper.
 
-Agents (markdown with YAML frontmatter: name, description, tools, model — both read-only):
+Agents (markdown with YAML frontmatter: name, description, tools, model — all read-only):
+- architect: consulted BEFORE substantive work — evaluates a proposed feature against docs/ARCHITECTURE.md, docs/decisions/, and the actual code; answers where it should live, what existing screens/components/services to reuse, what is genuinely new, and what tempting approach would violate the structure. Proportional output: small request, short design.
 - code-reviewer: reviews diffs for React Native pitfalls, security issues, and violations of the six CLAUDE.md rules above.
 - consistency-checker: compares new/changed code against neighboring existing files and flags anything that would reveal it wasn't hand-written by the team — style drift, off-theme values, AI-style comments, duplicated existing logic, or unrequested additions.
+- security-reviewer: reviews diffs at the app's actual trust boundaries, derived from Phase 1 (API clients and auth/token handling, secure storage — Keychain/EncryptedSharedPreferences vs AsyncStorage, deep links and WebViews, secrets in the bundle, PII in logs/crash reporting). Findings ordered by severity with file:line and the minimal fix; no theoretical padding.
 
 Commands:
 - new-feature: plan which EXISTING screens/components/services can be reused, list what genuinely must be new, get confirmation, then implement via the skills.
