@@ -1,6 +1,6 @@
 import { isAvailable, toolsInCategory } from './commands'
 import { PLATFORM_INFO, type PlatformId } from './platform'
-import { CATEGORIES, TOOLS, type Tool } from './tools'
+import { CATEGORIES, type Tool } from './tools'
 
 // A web page can't see what's installed — browsers sandbox that. Detection
 // works like the setup script in reverse: we generate a scan script the user
@@ -25,12 +25,14 @@ export interface DetectSpec {
   linuxPaths?: string[]
   // MSIX/Store package name (Get-AppxPackage) — Windows only.
   winAppx?: string
+  // Substring searched in ~/.claude.json (fixed-string match) — how MCP
+  // servers ("server-key") and plugins (name@marketplace) are detected.
+  claudeConfig?: string
 }
 
 // Detection config lives here, not on the Tool, so tools.ts stays a pure
-// "what to install" table. Tools without an entry (Claude Code plugins, MCP
-// servers, per-project prompts) can't be seen from outside — the modal lists
-// them as not scannable.
+// "what to install" table. Tools without an entry (per-project prompts)
+// can't be seen from outside and are simply left out of the scan.
 export const DETECT_SPECS: Record<string, DetectSpec> = {
   homebrew: { bins: ['brew'], winBins: ['choco'] },
   git: { bins: ['git'] },
@@ -126,6 +128,19 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   uv: { bins: ['uv'] },
   graphify: { bins: ['graphify'] },
   fastlane: { bins: ['fastlane'] },
+  superpowers: { claudeConfig: 'superpowers@' },
+  'ui-ux-pro-max': { claudeConfig: 'ui-ux-pro-max@' },
+  context7: { claudeConfig: '"context7"' },
+  'atlassian-mcp': { claudeConfig: '"atlassian"' },
+  'xcodebuild-mcp': { claudeConfig: '"XcodeBuildMCP"' },
+  'android-dev-mcp': { claudeConfig: '"android-dev"' },
+  'sentry-mcp': { claudeConfig: '"sentry"' },
+  'firebase-mcp': { claudeConfig: '"firebase"' },
+  'figma-mcp': { claudeConfig: '"figma-dev-mode"' },
+  'slack-mcp': { claudeConfig: 'slack@claude-plugins-official' },
+  'zoho-cliq-mcp': { claudeConfig: '"zoho-cliq"' },
+  'teams-mcp': { claudeConfig: '"teams"' },
+  'postman-mcp': { claudeConfig: '"postman"' },
 }
 
 export const RESULT_PREFIX = 'RN-ONBOARD/1'
@@ -134,6 +149,7 @@ export type DetectCheck =
   | { kind: 'bin'; value: string }
   | { kind: 'path'; value: string }
   | { kind: 'appx'; value: string }
+  | { kind: 'config'; value: string }
 
 export function checksFor(spec: DetectSpec, os: OsId): DetectCheck[] {
   const checks: DetectCheck[] = []
@@ -142,6 +158,7 @@ export function checksFor(spec: DetectSpec, os: OsId): DetectCheck[] {
   checks.push(...bins.map((value): DetectCheck => ({ kind: 'bin', value })))
   checks.push(...paths.map((value): DetectCheck => ({ kind: 'path', value })))
   if (os === 'win' && spec.winAppx) checks.push({ kind: 'appx', value: spec.winAppx })
+  if (spec.claudeConfig) checks.push({ kind: 'config', value: spec.claudeConfig })
   return checks
 }
 
@@ -151,7 +168,7 @@ export function isDetectable(tool: Tool, platform: PlatformId): boolean {
   return checksFor(spec, PLATFORM_INFO[platform].os).length > 0
 }
 
-// Human-readable "how it's checked" label shown next to each checkbox.
+// Human-readable "how it's checked" label used in the generated script comments.
 function describeCheck(check: DetectCheck, os: OsId): string {
   switch (check.kind) {
     case 'bin':
@@ -160,27 +177,26 @@ function describeCheck(check: DetectCheck, os: OsId): string {
       return `${check.value} exists`
     case 'appx':
       return `Store package "${check.value}"`
+    case 'config':
+      return `~/.claude.json has ${check.value}`
   }
 }
 
-// max caps how many checks are spelled out (UI rows truncate; the generated
-// script passes Infinity — there the comment IS the documentation).
-export function describeChecks(spec: DetectSpec, os: OsId, max = 2): string {
-  const parts = checksFor(spec, os).map((c) => describeCheck(c, os))
-  if (parts.length <= max) return parts.join(' or ')
-  return `${parts.slice(0, max).join(' or ')} +${parts.length - max} more`
+export function describeChecks(spec: DetectSpec, os: OsId): string {
+  return checksFor(spec, os)
+    .map((c) => describeCheck(c, os))
+    .join(' or ')
 }
 
-// Which tools the scan covers, grouped by category — drives the modal's
-// include/exclude checkboxes, mirroring aiSetupGroups.
+// Which tools the scan covers, grouped by category — feeds the script
+// generator and the modal's coverage summary.
 export interface DetectGroup {
   id: string
   title: string
-  tools: Array<{ id: string; name: string; how: string }>
+  tools: Array<{ id: string; name: string }>
 }
 
 export function detectGroups(platform: PlatformId): DetectGroup[] {
-  const os = PLATFORM_INFO[platform].os
   const groups: DetectGroup[] = []
   for (const category of [...CATEGORIES].sort((a, b) => a.order - b.order)) {
     const tools = toolsInCategory(category.id).filter((t) => isDetectable(t, platform))
@@ -188,19 +204,10 @@ export function detectGroups(platform: PlatformId): DetectGroup[] {
     groups.push({
       id: category.id,
       title: category.title,
-      tools: tools.map((t) => ({ id: t.id, name: t.name, how: describeChecks(DETECT_SPECS[t.id], os) })),
+      tools: tools.map((t) => ({ id: t.id, name: t.name })),
     })
   }
   return groups
-}
-
-// Tools shown on the page for this platform that the scan cannot see
-// (Claude Code plugins, MCP servers, per-project prompts, AppImage-only apps).
-export function undetectableTools(platform: PlatformId): Array<{ id: string; name: string }> {
-  return TOOLS.filter((t) => isAvailable(t, platform) && !isDetectable(t, platform)).map((t) => ({
-    id: t.id,
-    name: t.name,
-  }))
 }
 
 // Pull the RN-ONBOARD/1 line out of whatever was pasted (possibly the whole

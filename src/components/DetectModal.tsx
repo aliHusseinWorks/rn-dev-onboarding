@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CheckCircle2, RefreshCw } from 'lucide-react'
-import { detectGroups, parseResultLine, undetectableTools, RESULT_PREFIX } from '../lib/detect'
+import { detectGroups, parseResultLine, RESULT_PREFIX } from '../lib/detect'
 import { generateDetectScript } from '../lib/detectScript'
 import { PLATFORM_INFO, type PlatformId } from '../lib/platform'
 import { useDetectSession, type DetectReport } from '../lib/useDetectSession'
@@ -23,48 +23,24 @@ interface Applied {
 }
 
 export function DetectModal({ platform, onApply, onClose }: Props) {
-  const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set())
   const [manualText, setManualText] = useState('')
   const [manualError, setManualError] = useState(false)
   const [applied, setApplied] = useState<Applied | null>(null)
   const session = useDetectSession()
 
-  const groups = useMemo(() => detectGroups(platform), [platform])
-  const unscannable = useMemo(() => undetectableTools(platform), [platform])
-  const script = useMemo(
-    () => generateDetectScript(platform, excluded, session.code),
-    [platform, excluded, session.code],
-  )
+  const scannable = useMemo(() => detectGroups(platform).flatMap((g) => g.tools), [platform])
+  const script = useMemo(() => generateDetectScript(platform, session.code), [platform, session.code])
 
-  const allTools = groups.flatMap((g) => g.tools)
-  const selectedIds = allTools.filter((t) => !excluded.has(t.id)).map((t) => t.id)
-  const nameOf = (id: string) => allTools.find((t) => t.id === id)?.name ?? id
+  const scannableIds = scannable.map((t) => t.id)
+  const nameOf = (id: string) => scannable.find((t) => t.id === id)?.name ?? id
   const isWindows = PLATFORM_INFO[platform].os === 'win'
 
-  const toggle = (id: string) =>
-    setExcluded((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-
-  const toggleGroup = (ids: string[], selectAll: boolean) =>
-    setExcluded((prev) => {
-      const next = new Set(prev)
-      for (const id of ids) {
-        if (selectAll) next.delete(id)
-        else next.add(id)
-      }
-      return next
-    })
-
   const applyReport = (report: DetectReport) => {
-    // Whitelist against the current selection — relay/paste data never writes
+    // Whitelist against our own scan list — relay/paste data never writes
     // arbitrary ids into localStorage.
-    const found = report.found.filter((id) => selectedIds.includes(id))
+    const found = report.found.filter((id) => scannableIds.includes(id))
     const mismatch = report.platform !== platform
-    const notFound = mismatch ? [] : selectedIds.filter((id) => !found.includes(id))
+    const notFound = mismatch ? [] : scannableIds.filter((id) => !found.includes(id))
     onApply(found, true)
     setApplied({ found, notFound, mismatch: mismatch ? report.platform : null })
   }
@@ -106,13 +82,14 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
     <Modal title="Detect installed tools" onClose={onClose}>
       <div className="flex flex-col gap-4">
         <p className="text-sm leading-relaxed text-fg-muted">
-          A web page can’t see your machine, so this works in one paste: copy the script below into {isWindows ? 'PowerShell' : 'your terminal'},
-          run it, and this page ticks off what it finds{session.status !== 'off' ? ' by itself — no refresh needed' : ''}.{' '}
-          <span className="text-fg">
-            The only data that leaves your machine: a one-time code, your platform id (
-            <span className="font-mono">{platform}</span>), and the ids of tools found.
-          </span>{' '}
-          The script is plain text — read it before running.
+          Copy the script below into {isWindows ? 'PowerShell' : 'your terminal'} and run it — this page ticks off
+          what it finds by itself, no refresh needed. It checks {scannable.length} tools: command-line tools, desktop
+          apps in their standard folders, and your Claude Code setup (MCP servers and plugins).
+        </p>
+        <p className="text-xs leading-relaxed text-fg-subtle">
+          The only data that leaves your machine: a one-time code, your platform id (
+          <span className="font-mono">{platform}</span>), and the ids of tools found. The script is plain text — every
+          check is one readable line.
         </p>
 
         {session.status !== 'off' && (
@@ -146,65 +123,13 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
           </div>
         )}
 
-        <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3">
-          <p className="text-xs font-medium text-fg">
-            Tools that will be checked{' '}
-            <span className="font-normal text-fg-subtle">— untick anything you don’t want scanned; the script updates.</span>
-          </p>
-          {groups.map((group) => {
-            const groupAllSelected = group.tools.every((t) => !excluded.has(t.id))
-            return (
-              <div key={group.id}>
-                <div className="mb-1 flex items-center gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-fg-subtle">{group.title}</p>
-                  <button
-                    onClick={() => toggleGroup(group.tools.map((t) => t.id), !groupAllSelected)}
-                    className="text-[11px] text-fg-subtle underline decoration-dotted underline-offset-2 transition-colors hover:text-fg cursor-pointer"
-                  >
-                    {groupAllSelected ? 'unselect all' : 'select all'}
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                  {group.tools.map((tool) => (
-                    <label key={tool.id} className="flex cursor-pointer items-start gap-1.5 text-xs text-fg-muted hover:text-fg">
-                      <input
-                        type="checkbox"
-                        checked={!excluded.has(tool.id)}
-                        onChange={() => toggle(tool.id)}
-                        className="mt-0.5 accent-accent"
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate">{tool.name}</span>
-                        <span className="block truncate font-mono text-[11px] text-fg-subtle">{tool.how}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-          {unscannable.length > 0 && (
-            <p className="border-t border-border pt-2 text-xs leading-relaxed text-fg-subtle">
-              {unscannable.length} tools can’t be detected from outside (Claude Code plugins, MCP servers, per-project
-              steps): {unscannable.slice(0, 6).map((t) => t.name).join(', ')}
-              {unscannable.length > 6 ? `, and ${unscannable.length - 6} more` : ''}. Tick those by hand.
-            </p>
-          )}
-        </div>
-
-        {selectedIds.length > 0 ? (
-          <CommandBlock command={script} label="Copy scan script" filename={isWindows ? 'scan.ps1' : 'scan.sh'} multiline />
-        ) : (
-          <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
-            Select at least one tool — the script has nothing to scan.
-          </p>
-        )}
+        <CommandBlock command={script} label="Copy scan script" filename={isWindows ? 'scan.ps1' : 'scan.sh'} download multiline />
 
         <div className="flex flex-col gap-1.5">
           <p className="text-xs text-fg-subtle">
             {session.status === 'off'
               ? `Then paste the ${RESULT_PREFIX} line the script prints:`
-              : `If reporting fails (offline, firewall), paste the ${RESULT_PREFIX} line the script prints:`}
+              : `No internet, or a firewall blocked the report? The script prints a ${RESULT_PREFIX} line — paste it here instead:`}
           </p>
           <div className="flex gap-2">
             <input
@@ -246,7 +171,7 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
             {applied.notFound.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <p className="text-fg-muted">
-                  {applied.notFound.length} selected {applied.notFound.length === 1 ? 'tool was' : 'tools were'} not
+                  {applied.notFound.length} scanned {applied.notFound.length === 1 ? 'tool was' : 'tools were'} not
                   found: {applied.notFound.map(nameOf).join(', ')}.
                 </p>
                 <button

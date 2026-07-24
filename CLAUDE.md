@@ -16,15 +16,16 @@ Despite the repo name, this is **not a React Native mobile app**. It is a single
 ## Docs contract — read before / update after
 
 **Read before:**
-- Any task: check `TODO.md` for parked items touching your area.
+- Any task: check `docs/TODO.md` for parked items touching your area.
 - Writing code, adding a module, or choosing a library/pattern: read `docs/ARCHITECTURE.md` (structure, stack, "when you need X use Y" table, code conventions).
 - Revisiting or contradicting a past choice: check `docs/decisions/` first.
 
 **Update after (same session, before finishing):**
-- Shipped a feature/fix → one line in `CHANGELOG.md` under Unreleased.
+- Shipped a feature/fix → one line in `docs/CHANGELOG.md` under Unreleased.
 - Made a decision with the user (chose between approaches, rejected an option) → new numbered file in `docs/decisions/`; never edit old ones, supersede them.
-- Deferred an idea or left a known gap → add it to `TODO.md`; tick items you completed.
+- Deferred an idea or left a known gap → add it to `docs/TODO.md`; tick items you completed.
 - Changed structure or stack → update `docs/ARCHITECTURE.md`.
+- Added/removed/edited a tool in `src/lib/tools.ts` → the change must ripple everywhere it's consumed: `DETECT_SPECS` in `src/lib/detect.ts` (a missing spec silently lists the tool as unscannable), and sanity-check the derived surfaces (AI-setup prompt, setup script, detect scan) still say the right thing — they generate from `tools.ts`, but notes/prereqs/needles are per-tool by hand.
 
 **Workflow gates** (agents in `.claude/agents/`): substantive features start with the `architect` agent (design fit before code) and end with `code-reviewer` + `consistency-checker`; any change touching the relay, generated scripts, storage, or external input also runs `security-reviewer`. Fix what they find before the session ends.
 

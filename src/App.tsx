@@ -223,7 +223,7 @@ export function App() {
             {modalTool.modal.steps
               ?.flatMap((step) => {
                 const command = typeof step.command === 'string' ? step.command : step.command[platform]
-                return command ? [{ note: step.note, command }] : []
+                return command ? [{ note: step.note, command, manual: step.manual }] : []
               })
               .map((step, i) => (
                 <div key={i} className="flex flex-col gap-1.5">
@@ -233,11 +233,17 @@ export function App() {
                     </span>
                     {step.note && <span>{step.note}</span>}
                   </div>
-                  <CommandBlock
-                    command={fillTokens(step.command, modalFields, fieldValues)}
-                    display={renderTokens(step.command, modalFields, fieldValues)}
-                    label="Copy"
-                  />
+                  {step.manual ? (
+                    <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[13px] leading-relaxed text-fg-muted">
+                      {renderTokens(step.command, modalFields, fieldValues)}
+                    </p>
+                  ) : (
+                    <CommandBlock
+                      command={fillTokens(step.command, modalFields, fieldValues)}
+                      display={renderTokens(step.command, modalFields, fieldValues)}
+                      label="Copy"
+                    />
+                  )}
                 </div>
               ))}
             {modalTool.modal.prompt && (
@@ -245,6 +251,8 @@ export function App() {
                 command={fillTokens(modalTool.modal.prompt, modalFields, fieldValues)}
                 display={renderTokens(modalTool.modal.prompt, modalFields, fieldValues)}
                 label={modalTool.modal.copyLabel ?? 'Copy'}
+                filename={`${modalTool.id}-prompt.md`}
+                download
                 multiline
               />
             )}

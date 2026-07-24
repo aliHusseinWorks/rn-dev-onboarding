@@ -62,9 +62,9 @@ Create this structure:
     └── fix-bug.md
 docs/
 ├── ARCHITECTURE.md
+├── CHANGELOG.md
 └── decisions/
     └── 0001-claude-workspace-setup.md
-CHANGELOG.md
 
 After Phase 1 you may additionally propose up to TWO repo-specific skills or agents, ONLY if something you found clearly demands them (a Detox/e2e suite, custom native modules, a design-system package). Present the proposal with one line of justification each and wait for my confirmation before creating them. The default is none — never invent tooling the repo's reality doesn't call for.
 
@@ -80,10 +80,10 @@ CLAUDE.md must encode these non-negotiable rules for every future session, state
 
 CLAUDE.md must also encode the docs contract, stated as rules:
 - Read before: check docs/ARCHITECTURE.md before writing code, adding a module, or choosing a library/pattern; check docs/decisions/ before revisiting a past choice. (Work items live in Jira, not in a repo file.)
-- Update after, in the same session: shipped a feature/fix → one line in CHANGELOG.md under Unreleased; made a decision with the user → new numbered file in docs/decisions/ (never edit old ones, supersede them); changed structure or stack → update docs/ARCHITECTURE.md.
+- Update after, in the same session: shipped a feature/fix → one line in docs/CHANGELOG.md under Unreleased; made a decision with the user → new numbered file in docs/decisions/ (never edit old ones, supersede them); changed structure or stack → update docs/ARCHITECTURE.md. Any change to one surface must ripple to everything that consumes it (configs, generated prompts, docs) in the same session.
 - Workflow gates: substantive features start with the architect agent (design before code) and end with code-reviewer + consistency-checker; changes touching auth, storage, networking, deep links, or WebViews also run security-reviewer.
 
-Keep CLAUDE.md itself short: the six rules, the docs contract, and quick facts (package manager, run commands for iOS and Android, lint command) — only if not already documented. Everything structural goes in docs/ARCHITECTURE.md, which you write from Phase 1: folder map, navigation and state libraries, theme file locations all new UI must consume, data flow, and a "when you need X, use Y, never Z" table of the repo's actual patterns. Seed CHANGELOG.md with an empty Unreleased section, and write docs/decisions/0001 recording this workspace setup itself (what was created and why). If any of these docs already exist, extend rather than recreate them.
+Keep CLAUDE.md itself short: the six rules, the docs contract, and quick facts (package manager, run commands for iOS and Android, lint command) — only if not already documented. Everything structural goes in docs/ARCHITECTURE.md, which you write from Phase 1: folder map, navigation and state libraries, theme file locations all new UI must consume, data flow, and a "when you need X, use Y, never Z" table of the repo's actual patterns. Seed docs/CHANGELOG.md with an empty Unreleased section, and write docs/decisions/0001 recording this workspace setup itself (what was created and why). All project docs live under docs/ (README stays at the root). If any of these docs already exist, extend rather than recreate them.
 
 Skills (each SKILL.md: YAML frontmatter with name + description, then instructions grounded in the project's real patterns, citing actual example files from this repo as the reference to imitate):
 - rn-component: creating a component that is indistinguishable from existing ones — reference 2-3 real components in this repo as the template.

@@ -44,7 +44,8 @@ src/
     useCopy.ts, useLocalStorage.ts, useDetectSession.ts   hooks (tuple returns like React's)
     versions.ts         latest-release badges (bare fetch)
 wrangler.toml         Pages project + KV binding
-docs/, CHANGELOG.md, TODO.md   living docs (see CLAUDE.md contract)
+docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
+                      decisions/ (see CLAUDE.md contract; README stays at root)
 ```
 
 ## When you need X, use Y

@@ -95,7 +95,7 @@ export function AiSetupModal({ platform, onClose }: Props) {
         </div>
 
         {selectedCount > 0 ? (
-          <CommandBlock command={prompt} label="Copy AI setup prompt" multiline />
+          <CommandBlock command={prompt} label="Copy AI setup prompt" filename="ai-setup-prompt.md" download multiline />
         ) : (
           <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
             Select at least one tool — the prompt has nothing to install.

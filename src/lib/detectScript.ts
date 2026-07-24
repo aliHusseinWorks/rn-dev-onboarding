@@ -34,15 +34,14 @@ interface ScanTarget {
   checks: DetectCheck[]
 }
 
-function scanTargets(platform: PlatformId, excluded: ReadonlySet<string>): ScanTarget[] {
+function scanTargets(platform: PlatformId): ScanTarget[] {
   const os = PLATFORM_INFO[platform].os
   return detectGroups(platform)
     .flatMap((g) => g.tools)
-    .filter((t) => !excluded.has(t.id))
     .map((t) => ({
       id: t.id,
       name: t.name,
-      how: describeChecks(DETECT_SPECS[t.id], os, Infinity),
+      how: describeChecks(DETECT_SPECS[t.id], os),
       checks: checksFor(DETECT_SPECS[t.id], os),
     }))
 }
@@ -75,10 +74,15 @@ function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): 
     `ok() { FOUND="$FOUND,$1"; IDS="$IDS,\\"$1\\""; printf '  [x] %s\\n' "$1"; }`,
     `no() { printf '  [ ] %s\\n' "$1"; }`,
     'has() { command -v "$1" >/dev/null 2>&1; }',
+    'has_cfg() { [ -f "$HOME/.claude.json" ] && grep -qF "$1" "$HOME/.claude.json" 2>/dev/null; }',
     '',
   ]
   for (const t of targets) {
-    const conds = t.checks.map((c) => (c.kind === 'bin' ? `has ${c.value}` : `[ -e "${expand(c.value)}" ]`))
+    const conds = t.checks.map((c) => {
+      if (c.kind === 'bin') return `has ${c.value}`
+      if (c.kind === 'config') return `has_cfg '${c.value}'`
+      return `[ -e "${expand(c.value)}" ]`
+    })
     lines.push(`# ${t.name} - ${t.how}`)
     lines.push(`if ${conds.join(' || ')}; then ok ${t.id}; else no ${t.id}; fi`)
   }
@@ -109,6 +113,7 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
     '$found = New-Object System.Collections.ArrayList',
     "function Test-Bin($n) { [bool](Get-Command $n -ErrorAction SilentlyContinue) }",
     'function Test-Appx($n) { try { [bool](Get-AppxPackage -Name $n -ErrorAction SilentlyContinue) } catch { $false } }',
+    'function Test-Cfg($n) { (Test-Path "$env:USERPROFILE\\.claude.json") -and (Select-String -Path "$env:USERPROFILE\\.claude.json" -Pattern $n -SimpleMatch -Quiet) }',
     'function Ok($id) { [void]$found.Add($id); "  [x] $id" }',
     'function No($id) { "  [ ] $id" }',
     '',
@@ -117,6 +122,7 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
     const conds = t.checks.map((c) => {
       if (c.kind === 'bin') return `(Test-Bin '${c.value}')`
       if (c.kind === 'appx') return `(Test-Appx '${c.value}')`
+      if (c.kind === 'config') return `(Test-Cfg '${c.value}')`
       return `(Test-Path "${c.value}")`
     })
     lines.push(`# ${t.name} - ${t.how}`)
@@ -137,8 +143,8 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
   return lines.join('\n')
 }
 
-export function generateDetectScript(platform: PlatformId, excluded: ReadonlySet<string>, code: string): string {
-  const targets = scanTargets(platform, excluded)
+export function generateDetectScript(platform: PlatformId, code: string): string {
+  const targets = scanTargets(platform)
   return PLATFORM_INFO[platform].os === 'win'
     ? psScript(platform, targets, code)
     : unixScript(platform, targets, code)
