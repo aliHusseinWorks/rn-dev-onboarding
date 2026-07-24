@@ -299,7 +299,7 @@ export const TOOLS: Tool[] = [
             'win-x64': 'ssh-keygen -t ed25519 -C "{email}"; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip',
             'win-arm': 'ssh-keygen -t ed25519 -C "{email}"; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip',
           },
-          note: 'Press Enter through the prompts. The public key ends up on your clipboard (Linux: printed — copy it).',
+          note: 'Run anywhere — the key is saved machine-wide in ~/.ssh and works for every repo. ssh-keygen asks a few questions (save location, passphrase); hit Enter at each to accept the defaults. Your public key lands on the clipboard (Linux: printed — copy it).',
         },
         {
           command: 'bitbucket.org → your avatar → Personal settings → SSH keys → Add key → paste',
@@ -619,8 +619,9 @@ export const TOOLS: Tool[] = [
     description: 'Check the whole toolchain in one command.',
     icon: 'stethoscope',
     order: 2,
+    inScript: false,
     docsUrl: 'https://reactnative.dev/docs/environment-setup',
-    note: 'Expect green checks for Node, JDK 17, Android SDK, and (macOS) Xcode / CocoaPods / Watchman.',
+    note: 'Run it INSIDE an RN project (create one above first) — outside a project it only half-runs, then errors. Expect green checks for Node, JDK 17, Android SDK, and (macOS) Xcode / CocoaPods / Watchman.',
     actions: {
       ...mac(cmd('npx react-native doctor')),
       linux: cmd('npx react-native doctor'),

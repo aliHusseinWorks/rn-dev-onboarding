@@ -1,0 +1,17 @@
+# Cloudflare Pages config — one deploy serves the static site (dist/) plus
+# the detect-scan relay (functions/report/[code].ts) on the same origin.
+#
+# One-time setup (see README "Deploy"):
+#   npx wrangler kv namespace create DETECT_KV   # paste the printed id below
+# then connect the repo in the Cloudflare dashboard (Workers & Pages →
+# Create → Pages → Connect to Git; build command `pnpm build`, output `dist`)
+# for auto-deploys on push, or deploy manually:
+#   pnpm build && npx wrangler pages deploy dist
+
+name = "rn-dev-onboarding"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-07-01"
+
+[[kv_namespaces]]
+binding = "DETECT_KV"
+id = "392c7287d1cc4ad7a61365b8f071319c"

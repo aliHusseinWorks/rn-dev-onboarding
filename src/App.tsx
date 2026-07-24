@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
-import { ChevronsDownUp, ChevronsUpDown, ExternalLink, FileDown, Sparkles, Terminal } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, ExternalLink, ScanSearch, Sparkles, Terminal } from 'lucide-react'
 import { AiSetupModal } from './components/AiSetupModal'
 import { CategorySection } from './components/CategorySection'
 import { CommandBlock } from './components/CommandBlock'
+import { DetectModal } from './components/DetectModal'
 import { Modal } from './components/Modal'
 import { PlatformBanner } from './components/PlatformBanner'
 import { ProgressBar } from './components/ProgressBar'
+import { ScrollTop } from './components/ScrollTop'
 import { SearchBar } from './components/SearchBar'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Tooltip } from './components/Tooltip'
-import { generateSetupScript, isAvailable, matchesQuery } from './lib/commands'
+import { isAvailable, matchesQuery } from './lib/commands'
 import { detectPlatform, PLATFORMS, PLATFORM_INFO, refinePlatform, type PlatformId } from './lib/platform'
 import { fillTokens, renderTokens } from './lib/tokens'
 import { CATEGORIES, TOOLS } from './lib/tools'
@@ -30,6 +32,7 @@ export function App() {
   const [modalToolId, setModalToolId] = useState<string | null>(null)
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
   const [aiSetupOpen, setAiSetupOpen] = useState(false)
+  const [detectOpen, setDetectOpen] = useState(false)
   // Section fold state, keyed by category id. Missing key = open.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [light, setLight] = useState(() => document.documentElement.classList.contains('light'))
@@ -57,20 +60,17 @@ export function App() {
 
   const toggleInstalled = (id: string) => setInstalled((prev) => ({ ...prev, [id]: !prev[id] }))
 
+  const setInstalledMany = (ids: string[], value: boolean) =>
+    setInstalled((prev) => {
+      const next = { ...prev }
+      for (const id of ids) next[id] = value
+      return next
+    })
+
   const availableTools = TOOLS.filter((t) => isAvailable(t, platform))
   const done = availableTools.filter((t) => installed[t.id]).length
   const categoryFor = (id: string) => CATEGORIES.find((c) => c.id === id)
   const hasResults = TOOLS.some((t) => matchesQuery(t, categoryFor(t.category), query))
-
-  const downloadScript = () => {
-    const { filename, content } = generateSetupScript(platform)
-    const url = URL.createObjectURL(new Blob([content], { type: 'text/plain' }))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(url)
-  }
 
   const openModal = (toolId: string) => {
     setFieldValues({})
@@ -129,18 +129,18 @@ export function App() {
               </button>
             </Tooltip>
             <Tooltip
-              label={`Downloads one script (${generateSetupScript(platform).filename}) that installs every command-line tool for your OS, in order.`}
+              label="One paste in your terminal: a readable script checks which tools are already installed and this page ticks them off by itself."
               side="bottom"
               align="end"
               className="shrink-0"
             >
               <button
-                onClick={downloadScript}
+                onClick={() => setDetectOpen(true)}
                 className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
               >
-                <FileDown size={16} />
-                <span className="hidden sm:inline">Generate setup script</span>
-                <span className="sm:hidden">Script</span>
+                <ScanSearch size={16} />
+                <span className="hidden sm:inline">Detect installed</span>
+                <span className="sm:hidden">Detect</span>
               </button>
             </Tooltip>
             <Tooltip
@@ -172,6 +172,7 @@ export function App() {
             open={!collapsed[category.id]}
             onToggleOpen={() => setCollapsed((prev) => ({ ...prev, [category.id]: !prev[category.id] }))}
             onToggle={toggleInstalled}
+            onSetMany={setInstalledMany}
             onOpenModal={openModal}
           />
         ))}
@@ -186,7 +187,11 @@ export function App() {
         </div>
       </footer>
 
+      <ScrollTop />
+
       {aiSetupOpen && <AiSetupModal platform={platform} onClose={() => setAiSetupOpen(false)} />}
+
+      {detectOpen && <DetectModal platform={platform} onApply={setInstalledMany} onClose={() => setDetectOpen(false)} />}
 
       {modalTool?.modal && (
         <Modal title={modalTool.name} onClose={() => setModalToolId(null)}>

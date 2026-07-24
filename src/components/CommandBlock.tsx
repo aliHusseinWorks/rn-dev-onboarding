@@ -8,11 +8,20 @@ interface Props {
   label?: string
   subtle?: boolean
   multiline?: boolean
+  // Header label of the multiline variant (e.g. scan.ps1); single-line ignores it.
+  filename?: string
   // Optional styled rendering (e.g. highlighted {tokens}); copying always uses `command`.
   display?: ReactNode
 }
 
-export function CommandBlock({ command, label = 'Copy command', subtle = false, multiline = false, display }: Props) {
+export function CommandBlock({
+  command,
+  label = 'Copy command',
+  subtle = false,
+  multiline = false,
+  filename = 'prompt.md',
+  display,
+}: Props) {
   const [copied, copy] = useCopy()
   const surface = subtle ? 'bg-bg/40' : 'bg-bg/70'
   const tip = copied ? 'Copied!' : label
@@ -22,7 +31,7 @@ export function CommandBlock({ command, label = 'Copy command', subtle = false, 
     return (
       <div className={`rounded-lg border border-border ${surface}`}>
         <div className="flex items-center justify-between border-b border-border px-3 py-1.5">
-          <span className="font-mono text-xs text-fg-subtle">prompt.md</span>
+          <span className="font-mono text-xs text-fg-subtle">{filename}</span>
           <Tooltip label={tip}>
             <button
               onClick={() => copy(command)}

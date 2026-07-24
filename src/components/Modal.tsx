@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 interface Props {
@@ -8,12 +8,17 @@ interface Props {
 }
 
 export function Modal({ title, onClose, children }: Props) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
+    // Move focus off the trigger button and into the dialog — standard dialog
+    // behavior, and it keeps the trigger's tooltip from re-appearing on close.
+    panelRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''
@@ -29,7 +34,9 @@ export function Modal({ title, onClose, children }: Props) {
       aria-label={title}
     >
       <div
-        className="card-in flex max-h-full w-full max-w-2xl flex-col rounded-2xl border border-border-strong bg-surface shadow-2xl"
+        ref={panelRef}
+        tabIndex={-1}
+        className="card-in flex max-h-full w-full max-w-2xl flex-col rounded-2xl border border-border-strong bg-surface shadow-2xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">

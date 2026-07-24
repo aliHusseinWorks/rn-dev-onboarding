@@ -1,5 +1,5 @@
-import { Check, ChevronDown, Copy } from 'lucide-react'
-import { copyAllForCategory, matchesQuery, toolsInCategory } from '../lib/commands'
+import { Check, CheckCheck, ChevronDown, Copy } from 'lucide-react'
+import { copyAllForCategory, isAvailable, matchesQuery, toolsInCategory } from '../lib/commands'
 import type { PlatformId } from '../lib/platform'
 import type { Category } from '../lib/tools'
 import { useCopy } from '../lib/useCopy'
@@ -14,10 +14,11 @@ interface Props {
   open: boolean
   onToggleOpen: () => void
   onToggle: (id: string) => void
+  onSetMany: (ids: string[], value: boolean) => void
   onOpenModal: (toolId: string) => void
 }
 
-export function CategorySection({ category, platform, installed, query, open, onToggleOpen, onToggle, onOpenModal }: Props) {
+export function CategorySection({ category, platform, installed, query, open, onToggleOpen, onToggle, onSetMany, onOpenModal }: Props) {
   const [copiedAll, copyAll] = useCopy()
 
   const tools = toolsInCategory(category.id).filter((t) => matchesQuery(t, category, query))
@@ -26,6 +27,8 @@ export function CategorySection({ category, platform, installed, query, open, on
 
   const expanded = query.trim() ? true : open
   const allCommands = copyAllForCategory(category.id, platform)
+  const availableIds = tools.filter((t) => isAvailable(t, platform)).map((t) => t.id)
+  const allDone = availableIds.length > 0 && availableIds.every((id) => installed[id])
 
   return (
     <section className="scroll-mt-4">
@@ -44,6 +47,24 @@ export function CategorySection({ category, platform, installed, query, open, on
             className={`ml-auto shrink-0 text-fg-subtle transition-transform ${expanded ? '' : '-rotate-90'}`}
           />
         </button>
+        {availableIds.length > 0 && (
+          <Tooltip
+            label={allDone ? 'Clear the installed checkmarks in this section.' : 'Check off every tool in this section as installed.'}
+            side="bottom"
+            align="end"
+            className="shrink-0"
+          >
+            <button
+              onClick={() => onSetMany(availableIds, !allDone)}
+              className={`flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border-strong cursor-pointer ${
+                allDone ? 'text-accent hover:text-accent' : 'text-fg-muted hover:text-fg'
+              }`}
+            >
+              <CheckCheck size={13} />
+              {allDone ? 'Uncheck all' : 'Mark all done'}
+            </button>
+          </Tooltip>
+        )}
         {allCommands && (
           <Tooltip label="Copies every command in this category for your OS." side="bottom" align="end" className="shrink-0">
             <button

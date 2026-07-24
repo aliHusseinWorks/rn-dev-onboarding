@@ -1,5 +1,5 @@
-import { PLATFORM_INFO, type PlatformId } from './platform'
-import { CATEGORIES, TOOLS, type Category, type Tool, type ToolAction } from './tools'
+import type { PlatformId } from './platform'
+import { TOOLS, type Category, type Tool, type ToolAction } from './tools'
 
 export const ARCH_SHORT: Record<PlatformId, string> = {
   'mac-arm': 'Apple Silicon',
@@ -55,44 +55,4 @@ export function copyAllForCategory(categoryId: string, platform: PlatformId): st
     .filter((a): a is ToolAction => a?.type === 'command')
     .map((a) => a.value)
     .join('\n\n')
-}
-
-// Build a single runnable install script for the detected OS. GUI apps that are
-// links (not commands) are emitted as manual-step comments so nothing is silently dropped.
-export function generateSetupScript(platform: PlatformId): { filename: string; content: string } {
-  const isWindows = PLATFORM_INFO[platform].os === 'win'
-  const comment = '#'
-  const lines: string[] = isWindows
-    ? [
-        '# React Native setup — ' + PLATFORM_INFO[platform].label,
-        '# Run this in PowerShell (the default Windows terminal), not cmd.exe.',
-        '$ErrorActionPreference = "Stop"',
-        '',
-      ]
-    : ['#!/usr/bin/env bash', '# React Native setup — ' + PLATFORM_INFO[platform].label, 'set -euo pipefail', '']
-
-  for (const category of [...CATEGORIES].sort((a, b) => a.order - b.order)) {
-    if (category.inScript === false) continue
-    // Tools whose whole setup lives in a modal have no action and emit nothing;
-    // modal tools with an action (e.g. Android Studio) still contribute it.
-    const tools = toolsInCategory(category.id).filter(
-      (t) => t.inScript !== false && resolveAction(t, platform),
-    )
-    if (tools.length === 0) continue
-    lines.push(`${comment} ── ${category.title} ──`)
-    for (const tool of tools) {
-      const action = resolveAction(tool, platform)
-      if (action?.type === 'command') {
-        lines.push(`echo "==> ${tool.name}"`, action.value)
-      } else if (action?.type === 'link') {
-        lines.push(`${comment} ${tool.name}: download from ${action.value}`)
-      }
-    }
-    lines.push('')
-  }
-
-  return {
-    filename: isWindows ? 'rn-setup.ps1' : 'rn-setup.sh',
-    content: lines.join('\n') + '\n',
-  }
 }

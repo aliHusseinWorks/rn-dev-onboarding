@@ -19,7 +19,7 @@ export function Tooltip({ label, children, side = 'top', align = 'center', class
       {children}
       <span
         role="tooltip"
-        className={`pointer-events-none absolute z-40 w-max max-w-[16rem] ${anchor} ${pos} rounded-md border border-border-strong bg-bg px-2 py-1 text-center text-[11px] font-medium leading-snug text-fg opacity-0 shadow-lg transition-opacity duration-150 group-hover/tt:opacity-100 group-focus-within/tt:opacity-100`}
+        className={`pointer-events-none absolute z-40 w-max max-w-[16rem] ${anchor} ${pos} rounded-md border border-border-strong bg-bg px-2 py-1 text-center text-[11px] font-medium leading-snug text-fg opacity-0 shadow-lg transition-opacity duration-150 group-hover/tt:opacity-100 group-has-[:focus-visible]/tt:opacity-100`}
       >
         {label}
       </span>

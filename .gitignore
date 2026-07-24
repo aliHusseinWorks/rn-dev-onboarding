@@ -12,6 +12,8 @@ dist
 dist-ssr
 *.local
 *.tmp
+.wrangler
+graphify-out
 
 # Editor directories and files
 .vscode/*
