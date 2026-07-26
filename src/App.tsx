@@ -215,7 +215,9 @@ export function App() {
 
       <ScrollTop />
 
-      {aiSetupOpen && <AiSetupModal platform={platform} onClose={() => setAiSetupOpen(false)} />}
+      {aiSetupOpen && (
+        <AiSetupModal platform={platform} installed={installed} onClose={() => setAiSetupOpen(false)} />
+      )}
 
       {detectOpen && (
         <DetectModal

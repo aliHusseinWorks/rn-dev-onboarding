@@ -110,6 +110,7 @@ export function aiSetupGroups(platform: PlatformId): AiSetupGroup[] {
 export function generateAiSetup(
   platform: PlatformId,
   excluded: ReadonlySet<string> = new Set(),
+  installed: ReadonlySet<string> = new Set(),
 ): { bootstrap: string; prompt: string } {
   const os = PLATFORM_INFO[platform]
   const isWindows = os.os === 'win'
@@ -118,11 +119,18 @@ export function generateAiSetup(
   const sections: string[] = []
   const slashChecklist: string[] = []
   const excludedNames: string[] = []
+  const installedNames: string[] = []
 
   for (const category of [...CATEGORIES].sort((a, b) => a.order - b.order)) {
     if (category.checkable === false) continue
     const bodies: string[] = []
     for (const tool of eligibleTools(category.id, platform)) {
+      // Checked off on the page wins over the modal's tick — the checkbox is
+      // disabled there, so an id can't be in both by user action.
+      if (installed.has(tool.id)) {
+        installedNames.push(tool.name)
+        continue
+      }
       if (excluded.has(tool.id)) {
         excludedNames.push(tool.name)
         continue
@@ -159,7 +167,7 @@ ${isWindows ? windowsRules.join('\n') : unixRules.join('\n')}
 8. When every section is done, verify the toolchain directly: node --version, git --version, java -version, adb --version, and that JAVA_HOME and ANDROID_HOME are set. Fix anything failing. Do NOT run npx react-native doctor — it only works inside an RN project; tell the user to run it after they clone or create one.
 9. Finish with: (a) a final summary table${slashChecklist.length > 0 ? ', (b) the SEND-YOURSELF checklist below printed verbatim — these are Claude Code slash commands the user must send as their own prompts (you cannot run them), one per prompt' : ''}. If any "claude plugin" installs ran, remind the user to restart Claude Code so the plugins load.
 
-${excludedNames.length > 0 ? `USER-EXCLUDED TOOLS\nThe user deliberately opted out of these — do NOT install, configure, or recommend them, and don't count them as missing in checklists or doctor fixes: ${excludedNames.join(', ')}.\n\n` : ''}GROUND TRUTH — install in this order
+${installedNames.length > 0 ? `ALREADY INSTALLED\nThe user has these ticked off as installed, so they are not in the list below — do NOT install or configure them: ${installedNames.join(', ')}. If a tool below genuinely depends on one and you find it missing or broken, tell the user and ask before touching it; don't quietly install something they told you they already have.\n\n` : ''}${excludedNames.length > 0 ? `USER-EXCLUDED TOOLS\nThe user deliberately opted out of these — do NOT install, configure, or recommend them, and don't count them as missing in checklists or doctor fixes: ${excludedNames.join(', ')}.\n\n` : ''}GROUND TRUTH — install in this order
 ${sections.join('\n')}
 ${slashChecklist.length > 0 ? `SEND-YOURSELF CHECKLIST (print at the end; the user sends each as its own prompt in Claude Code)\n${slashChecklist.join('\n')}\n\n` : ''}Do not modify any project code. This session is machine setup only.`
 

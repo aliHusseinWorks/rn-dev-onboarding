@@ -53,15 +53,3 @@ export function buttonLabel(action: ToolAction, platform: PlatformId): string {
   if (action.type === 'command') return 'Copy command'
   return `Download for ${ARCH_SHORT[platform]}`
 }
-
-// Concatenate every runnable command in a category for the current OS.
-export function copyAllForCategory(categoryId: string, platform: PlatformId): string {
-  const commands = toolsInCategory(categoryId)
-    .map((t) => resolveAction(t, platform))
-    .filter((a): a is ToolAction => a?.type === 'command')
-    .map((a) => a.value)
-  // Trailing newline for the same reason the scan script has one: pasted without
-  // it the last command sits at the prompt unexecuted, and a partial install
-  // reads as a complete one.
-  return commands.length > 0 ? `${commands.join('\n\n')}\n` : ''
-}

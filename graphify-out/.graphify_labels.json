@@ -44,6 +44,7 @@
   "42": "new-feature.md",
   "43": "0015 — The knowledge graph ships in the repo",
   "44": "0010 — The herdr launcher is a hosted script run in one paste, and modal fields gain an image kind",
-  "45": "0013 — The detect scan applies its whole result; Undo replaces the opt-in uncheck",
-  "46": "0014 — Per-project sections carry no checkmarks"
+  "45": "versions.ts",
+  "46": "0018 — The AI setup skips tools already ticked off",
+  "47": "index.html Entry Page"
 }

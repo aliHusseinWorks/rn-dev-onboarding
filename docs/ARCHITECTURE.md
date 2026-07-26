@@ -36,7 +36,7 @@ src/
     tools.ts            THE data table: categories + tools (most features are data-only edits here)
     detect.ts           DETECT_SPECS (how each tool is detected) + eligibility + parsing
     detectScript.ts     scan-script generators (PowerShell 5.1 / POSIX sh) + session codes
-    commands.ts         pure helpers over tools.ts (resolve actions, setup script)
+    commands.ts         pure helpers over tools.ts (resolve actions, availability)
     platform.ts         OS/arch detection (UA + WebGL + UA-CH quirks)
     aiSetup.ts          "Full AI setup" prompt builder
     setupPrompt.ts      team prompts (workspace setup, plugin fill, run-docs)

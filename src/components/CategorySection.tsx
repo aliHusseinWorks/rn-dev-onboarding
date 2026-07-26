@@ -1,8 +1,7 @@
-import { Check, CheckCheck, ChevronDown, Copy } from 'lucide-react'
-import { copyAllForCategory, isAvailable, matchesQuery, toolsInCategory } from '../lib/commands'
+import { CheckCheck, ChevronDown } from 'lucide-react'
+import { isAvailable, matchesQuery, toolsInCategory } from '../lib/commands'
 import type { PlatformId } from '../lib/platform'
 import type { Category } from '../lib/tools'
-import { useCopy } from '../lib/useCopy'
 import { ToolCard } from './ToolCard'
 import { Tooltip } from './Tooltip'
 
@@ -19,14 +18,11 @@ interface Props {
 }
 
 export function CategorySection({ category, platform, installed, query, open, onToggleOpen, onToggle, onSetMany, onOpenModal }: Props) {
-  const [copiedAll, copyAll] = useCopy()
-
   const tools = toolsInCategory(category.id).filter((t) => matchesQuery(t, category, query))
 
   if (tools.length === 0) return null
 
   const expanded = query.trim() ? true : open
-  const allCommands = copyAllForCategory(category.id, platform)
   const availableIds = tools.filter((t) => isAvailable(t, platform)).map((t) => t.id)
   const allDone = availableIds.length > 0 && availableIds.every((id) => installed[id])
 
@@ -62,17 +58,6 @@ export function CategorySection({ category, platform, installed, query, open, on
             >
               <CheckCheck size={13} />
               {allDone ? 'Uncheck all' : 'Mark all done'}
-            </button>
-          </Tooltip>
-        )}
-        {allCommands && (
-          <Tooltip label="Copies every command in this category for your OS." side="bottom" align="end" className="shrink-0">
-            <button
-              onClick={() => copyAll(allCommands)}
-              className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
-            >
-              {copiedAll ? <Check size={13} className="text-accent" /> : <Copy size={13} />}
-              {copiedAll ? 'Copied!' : 'Copy all'}
             </button>
           </Tooltip>
         )}

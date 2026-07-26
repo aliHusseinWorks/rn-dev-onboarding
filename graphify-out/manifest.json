@@ -20,18 +20,18 @@
     "semantic_hash": "211a0210b6489dacc3a2f60b22d2d527"
   },
   "src/App.tsx": {
-    "mtime": 1785010696.4388995,
-    "ast_hash": "7de899b60fb364e535f73845936af999",
+    "mtime": 1785028982.6704707,
+    "ast_hash": "d7e341138bdeab35eb6ec118ed51bb0c",
     "semantic_hash": ""
   },
   "src/components/AiSetupModal.tsx": {
-    "mtime": 1784919028.6236842,
-    "ast_hash": "f0e74515b04b8944273a3b46b5ed625c",
+    "mtime": 1785029555.0482397,
+    "ast_hash": "2e0062991a481bca706b41fc7b7f84bb",
     "semantic_hash": ""
   },
   "src/components/CategorySection.tsx": {
-    "mtime": 1785010668.2473607,
-    "ast_hash": "e09c8a81ccef49141e49324446afa470",
+    "mtime": 1785028628.1113718,
+    "ast_hash": "49e4f46ed3c621a35cb5f9738a9dbcd5",
     "semantic_hash": ""
   },
   "src/components/CommandBlock.tsx": {
@@ -80,13 +80,13 @@
     "semantic_hash": ""
   },
   "src/lib/aiSetup.ts": {
-    "mtime": 1785010687.98829,
-    "ast_hash": "ff89ff54018671f7a821e840192da927",
+    "mtime": 1785028924.8014917,
+    "ast_hash": "5858577b7e6824aed58a18ebaa5f27c0",
     "semantic_hash": ""
   },
   "src/lib/commands.ts": {
-    "mtime": 1785026467.2726963,
-    "ast_hash": "de4176f7261db32ec9ac6c5471cb8f48",
+    "mtime": 1785028619.377812,
+    "ast_hash": "95f9822d6f5f35cc03cd0967e3ef25e2",
     "semantic_hash": ""
   },
   "src/lib/icons.ts": {
@@ -160,8 +160,8 @@
     "semantic_hash": "1baad439aa7f7feba90160f7139f0460"
   },
   "README.md": {
-    "mtime": 1785010776.4533985,
-    "ast_hash": "a8b76019a92c97f0d65b07e15ae551be",
+    "mtime": 1785028663.2667332,
+    "ast_hash": "d94e625b8f970546632dc43dfbd8eb6d",
     "semantic_hash": ""
   },
   "index.html": {
@@ -275,18 +275,18 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1785016319.25249,
-    "ast_hash": "2aa75ca809dcd1142fe7748de01de537",
+    "mtime": 1785028665.6162195,
+    "ast_hash": "55694ddfcce443477b3ef02e84553bc6",
     "semantic_hash": ""
   },
   "docs/ARCHITECTURE.md": {
-    "mtime": 1785016384.334705,
-    "ast_hash": "e3ae185303478e1135190007998edbcd",
+    "mtime": 1785028666.756654,
+    "ast_hash": "e90cd1c7b05ce419612f28130243cb83",
     "semantic_hash": ""
   },
   "docs/CHANGELOG.md": {
-    "mtime": 1785027687.0050528,
-    "ast_hash": "a4978449d74f8b24d8e12e819ea8810a",
+    "mtime": 1785029505.306178,
+    "ast_hash": "7b4513094d41f69eacce16b62add1b06",
     "semantic_hash": ""
   },
   "docs/TODO.md": {
@@ -377,6 +377,16 @@
   "docs/decisions/0016-category-inscript-deleted-not-wired-up.md": {
     "mtime": 1785027685.0320525,
     "ast_hash": "47747be8ef35eba6cfc1617e7473ad6a",
+    "semantic_hash": ""
+  },
+  "docs/decisions/0017-copy-all-removed.md": {
+    "mtime": 1785028685.739352,
+    "ast_hash": "7dd7702d28de3b4ad1fad5bbfdeb3c67",
+    "semantic_hash": ""
+  },
+  "docs/decisions/0018-ai-setup-skips-installed-tools.md": {
+    "mtime": 1785029499.9617872,
+    "ast_hash": "72c0c919efe3d3a2859ea978ea556157",
     "semantic_hash": ""
   }
 }
