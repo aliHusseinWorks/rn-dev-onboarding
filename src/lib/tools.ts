@@ -762,21 +762,6 @@ export const TOOLS: Tool[] = [
     },
     secondary: { ...mac(cmd('brew install herdr')) },
   },
-  {
-    id: 'uv',
-    category: 'ai',
-    name: 'uv',
-    description: 'Python tool manager — brings its own Python. For Graphify.',
-    icon: 'feather',
-    order: 3,
-    docsUrl: 'https://docs.astral.sh/uv/',
-    version: { github: 'astral-sh/uv' },
-    actions: {
-      ...mac(cmd('curl -LsSf https://astral.sh/uv/install.sh | sh')),
-      linux: cmd('curl -LsSf https://astral.sh/uv/install.sh | sh'),
-      ...win(cmd('winget install --id astral-sh.uv -e --accept-source-agreements --accept-package-agreements')),
-    },
-  },
 
   {
     id: 'superpowers',
@@ -791,33 +776,6 @@ export const TOOLS: Tool[] = [
       steps: [
         { command: '/plugin marketplace add obra/superpowers-marketplace', note: 'Send this as its own prompt.' },
         { command: '/plugin install superpowers@superpowers-marketplace', note: 'Then send this as a separate prompt.' },
-      ],
-    },
-  },
-  {
-    id: 'graphify',
-    category: 'ai',
-    name: 'Graphify',
-    description: 'Turn a codebase into a queryable knowledge graph.',
-    icon: 'workflow',
-    order: 5,
-    docsUrl: 'https://github.com/Graphify-Labs/graphify',
-    version: { pypi: 'graphifyy' },
-    modal: {
-      intro: 'Builds a knowledge graph you can query instead of grepping. The last two steps are what make Claude Code actually reach for it — without them the graph sits there unread.',
-      prereq: 'uv — install the uv card first. It fetches its own Python, so you do not need one on the machine.',
-      steps: [
-        { command: 'uv tool install graphifyy', note: 'Package name is graphifyy (double y); the command is graphify.' },
-        { command: 'graphify install' },
-        { command: '/graphify .', note: 'Run this inside Claude Code — builds graphify-out/ for the repo you are in.' },
-        {
-          command: 'graphify claude install',
-          note: "Once per repo. Adds a graphify section to that repo's CLAUDE.md and registers hooks that catch an agent grepping when it could have queried the graph.",
-        },
-        {
-          command: 'graphify hook install',
-          note: 'Once per repo. Rebuilds the graph on commit, so a query never answers from a graph older than the code.',
-        },
       ],
     },
   },

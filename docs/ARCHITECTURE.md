@@ -46,8 +46,6 @@ src/
     versions.ts         latest-release badges (bare fetch)
 public/               served at the site root: favicon, plus the herdr launcher
                       scripts and icon the pasted one-liner fetches
-graphify-out/         the committed knowledge graph — graph.json, manifest.json,
-                      GRAPH_REPORT.md; everything else generated is ignored
 wrangler.toml         Pages project + KV binding
 docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
                       decisions/ (see CLAUDE.md contract; README stays at root)

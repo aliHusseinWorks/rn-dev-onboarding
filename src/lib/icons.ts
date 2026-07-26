@@ -10,7 +10,6 @@ import {
   Container,
   Database,
   Eye,
-  Feather,
   Frame,
   Gem,
   GitBranch,
@@ -33,7 +32,6 @@ import {
   Stethoscope,
   Terminal,
   Users,
-  Workflow,
   Zap,
   type LucideIcon,
 } from 'lucide-react'
@@ -51,7 +49,6 @@ const ICONS: Record<string, LucideIcon> = {
   container: Container,
   database: Database,
   eye: Eye,
-  feather: Feather,
   figma: Frame,
   gem: Gem,
   'git-branch': GitBranch,
@@ -74,7 +71,6 @@ const ICONS: Record<string, LucideIcon> = {
   stethoscope: Stethoscope,
   terminal: Terminal,
   users: Users,
-  workflow: Workflow,
   zap: Zap,
 }
 

@@ -1,6 +1,6 @@
 # 0009 — A tool change must ripple to everything that consumes it
 
-Date: 2026-07-24 · Status: accepted
+Date: 2026-07-24 · Status: accepted · the "setup script" surface it names was removed by [0017](0017-copy-all-removed.md)
 
 ## Context
 

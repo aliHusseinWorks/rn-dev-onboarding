@@ -24,7 +24,7 @@ function isSlashCommand(command: string): boolean {
 }
 
 // Plugin slash commands have a non-interactive CLI twin (`claude plugin …`)
-// the agent can run itself; other slash commands (e.g. /graphify) only exist
+// the agent can run itself; any other slash command only exists
 // inside the Claude Code UI and must be sent by the user.
 function slashToCli(command: string): string | undefined {
   if (command.startsWith('/plugin ')) return `claude ${command.slice(1)}`

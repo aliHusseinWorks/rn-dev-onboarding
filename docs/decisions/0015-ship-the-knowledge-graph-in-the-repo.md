@@ -1,6 +1,6 @@
 # 0015 — The knowledge graph ships in the repo
 
-Date: 2026-07-26 · Status: accepted
+Date: 2026-07-26 · Status: superseded by [0019](0019-graphify-removed.md) — do not act on this
 
 ## Context
 
