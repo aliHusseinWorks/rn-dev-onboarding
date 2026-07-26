@@ -75,12 +75,14 @@ function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): 
     `no() { printf '  [ ] %s\\n' "$1"; }`,
     'has() { command -v "$1" >/dev/null 2>&1; }',
     'has_cfg() { [ -f "$HOME/.claude.json" ] && grep -qF "$1" "$HOME/.claude.json" 2>/dev/null; }',
+    'has_plugin() { [ -f "$HOME/.claude/settings.json" ] && grep -qF "$1" "$HOME/.claude/settings.json" 2>/dev/null; }',
     '',
   ]
   for (const t of targets) {
     const conds = t.checks.map((c) => {
       if (c.kind === 'bin') return `has ${c.value}`
       if (c.kind === 'config') return `has_cfg '${c.value}'`
+      if (c.kind === 'plugin') return `has_plugin '${c.value}'`
       return `[ -e "${expand(c.value)}" ]`
     })
     lines.push(`# ${t.name} - ${t.how}`)
@@ -107,6 +109,10 @@ function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): 
 // ArrayList instead of += array copies, JSON built by string concat
 // (5.1's ConvertTo-Json unwraps single-element arrays), Invoke-RestMethod
 // (5.1 aliases curl to Invoke-WebRequest), explicit TLS 1.2 opt-in.
+// Every statement must also fit on ONE line: the console runs a paste line by
+// line, but an unclosed brace switches it to the >> continuation prompt, where
+// it buffers the rest of the script and waits for a blank line that a paste
+// never contains.
 function psScript(platform: PlatformId, targets: ScanTarget[], code: string): string {
   const lines = [
     ...header(platform, code),
@@ -114,6 +120,7 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
     "function Test-Bin($n) { [bool](Get-Command $n -ErrorAction SilentlyContinue) }",
     'function Test-Appx($n) { try { [bool](Get-AppxPackage -Name $n -ErrorAction SilentlyContinue) } catch { $false } }',
     'function Test-Cfg($n) { (Test-Path "$env:USERPROFILE\\.claude.json") -and (Select-String -Path "$env:USERPROFILE\\.claude.json" -Pattern $n -SimpleMatch -Quiet) }',
+    'function Test-Plugin($n) { (Test-Path "$env:USERPROFILE\\.claude\\settings.json") -and (Select-String -Path "$env:USERPROFILE\\.claude\\settings.json" -Pattern $n -SimpleMatch -Quiet) }',
     'function Ok($id) { [void]$found.Add($id); "  [x] $id" }',
     'function No($id) { "  [ ] $id" }',
     '',
@@ -123,6 +130,7 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
       if (c.kind === 'bin') return `(Test-Bin '${c.value}')`
       if (c.kind === 'appx') return `(Test-Appx '${c.value}')`
       if (c.kind === 'config') return `(Test-Cfg '${c.value}')`
+      if (c.kind === 'plugin') return `(Test-Plugin '${c.value}')`
       return `(Test-Path "${c.value}")`
     })
     lines.push(`# ${t.name} - ${t.how}`)
@@ -133,11 +141,7 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
     lines.push(
       `$ids = ($found | ForEach-Object { '"' + $_ + '"' }) -join ','`,
       `$body = '{"v":1,"platform":"${platform}","found":[' + $ids + ']}'`,
-      'try {',
-      '  [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12',
-      `  Invoke-RestMethod -Method Post -Uri '${DETECT_ENDPOINT}/report/${code}' -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null`,
-      `  '${REPORT_OK_MSG}'`,
-      `} catch { '${REPORT_FAIL_MSG}' }`,
+      `try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; Invoke-RestMethod -Method Post -Uri '${DETECT_ENDPOINT}/report/${code}' -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null; '${REPORT_OK_MSG}' } catch { '${REPORT_FAIL_MSG}' }`,
     )
   }
   return lines.join('\n')
@@ -145,7 +149,11 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
 
 export function generateDetectScript(platform: PlatformId, code: string): string {
   const targets = scanTargets(platform)
-  return PLATFORM_INFO[platform].os === 'win'
-    ? psScript(platform, targets, code)
-    : unixScript(platform, targets, code)
+  const script =
+    PLATFORM_INFO[platform].os === 'win'
+      ? psScript(platform, targets, code)
+      : unixScript(platform, targets, code)
+  // Trailing newline: a pasted last line without one just sits at the prompt
+  // unexecuted, so the report step would never run.
+  return `${script}\n`
 }

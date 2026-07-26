@@ -55,15 +55,15 @@ Helpers at the top of the file keep entries terse:
 **Platform ids:** `mac-arm`, `mac-intel`, `win-x64`, `win-arm`, `linux`.
 
 **Ripple checklist** — a tool change isn't done until everything consuming it is updated:
-1. `DETECT_SPECS` in `src/lib/detect.ts` — how the detect scan finds it (bin on PATH, install dir, Store package, `~/.claude.json` needle). No spec = silently left out of the scan.
+1. `DETECT_SPECS` in `src/lib/detect.ts` — how the detect scan finds it (bin on PATH, install dir, Store package, `~/.claude.json` needle for MCP servers, `~/.claude/settings.json` needle for plugins). No spec = silently left out of the scan.
 2. The AI-setup prompt and setup script derive from `tools.ts` automatically — but eyeball both if the tool has unusual steps (manual/`docsOnly` flags, fields).
 3. One line in `docs/CHANGELOG.md`.
 
-Add a **category** by appending to `CATEGORIES` (id, title, description, `accent` hex, order). The accent colors the category's icons and rail.
+Add a **category** by appending to `CATEGORIES` (id, title, description, `accent` hex, order). The accent colors the category's icons and rail. Set `checkable: false` if its cards are per-project actions rather than machine state — they then carry no checkmark and stay out of the progress count, the AI setup and the detect scan.
 
 ## Detect installed tools
 
-The **Detect installed** button generates a readable scan script (PowerShell on Windows, POSIX sh on macOS/Linux). The user pastes it into their terminal once; it checks each tool (PATH lookup, install-dir existence, Windows Store package, MCP servers & Claude Code plugins via `~/.claude.json`) and reports back — the page polls and ticks the checkboxes live. The modal stays deliberately simple: one line saying what's covered; the script itself, with a comment per check, is the full transparency artifact. Only per-project steps (scaffolding, doctor runs, team prompts) can't be scanned.
+The **Detect installed** button generates a readable scan script (PowerShell on Windows, POSIX sh on macOS/Linux). The user pastes it into their terminal once; it checks each tool (PATH lookup, install-dir existence, Windows Store package, MCP servers via `~/.claude.json`, Claude Code plugins via `~/.claude/settings.json`) and reports back — the page polls and ticks the checkboxes live. The modal stays deliberately simple: one line saying what's covered; the script itself, with a comment per check, is the full transparency artifact. Only per-project steps (scaffolding, doctor runs, team prompts) can't be scanned.
 
 **Privacy:** the only data that leaves the machine is a one-time pairing code, the platform id (e.g. `mac-arm`), and the ids of tools found. Codes are single-use and expire after 10 minutes; the relay stores results at most that long.
 

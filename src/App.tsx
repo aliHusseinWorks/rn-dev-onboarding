@@ -4,6 +4,7 @@ import { AiSetupModal } from './components/AiSetupModal'
 import { CategorySection } from './components/CategorySection'
 import { CommandBlock } from './components/CommandBlock'
 import { DetectModal } from './components/DetectModal'
+import { ImageDropField } from './components/ImageDropField'
 import { Modal } from './components/Modal'
 import { PlatformBanner } from './components/PlatformBanner'
 import { ProgressBar } from './components/ProgressBar'
@@ -11,9 +12,10 @@ import { ScrollTop } from './components/ScrollTop'
 import { SearchBar } from './components/SearchBar'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Tooltip } from './components/Tooltip'
-import { isAvailable, matchesQuery } from './lib/commands'
+import { isAvailable, isCheckable, matchesQuery } from './lib/commands'
+import { iconFormatFor } from './lib/iconImage'
 import { detectPlatform, PLATFORMS, PLATFORM_INFO, refinePlatform, type PlatformId } from './lib/platform'
-import { fillTokens, renderTokens } from './lib/tokens'
+import { fillTokens, renderTokens, shellSingleQuote } from './lib/tokens'
 import { CATEGORIES, TOOLS } from './lib/tools'
 import { useLocalStorage } from './lib/useLocalStorage'
 
@@ -67,7 +69,7 @@ export function App() {
       return next
     })
 
-  const availableTools = TOOLS.filter((t) => isAvailable(t, platform))
+  const availableTools = TOOLS.filter((t) => isAvailable(t, platform) && isCheckable(t))
   const done = availableTools.filter((t) => installed[t.id]).length
   const categoryFor = (id: string) => CATEGORIES.find((c) => c.id === id)
   const hasResults = TOOLS.some((t) => matchesQuery(t, categoryFor(t.category), query))
@@ -78,8 +80,32 @@ export function App() {
   }
 
   const modalTool = TOOLS.find((t) => t.id === modalToolId)
-  const modalFields = modalTool?.modal?.fields ?? []
   const sortedCategories = [...CATEGORIES].sort((a, b) => a.order - b.order)
+
+  // Steps for this platform, with the per-platform command and filename picked.
+  const platformSteps = (modalTool?.modal?.steps ?? []).flatMap((step) => {
+    const command = typeof step.command === 'string' ? step.command : step.command[platform]
+    if (!command) return []
+    const filename = typeof step.filename === 'string' ? step.filename : step.filename?.[platform]
+    return [{ ...step, command, filename }]
+  })
+
+  const isSet = (key: string) => Boolean(fieldValues[key]?.trim())
+  const modalSteps = platformSteps.filter(
+    (step) =>
+      (!step.whenFieldSet || isSet(step.whenFieldSet)) && (!step.whenFieldUnset || !isSet(step.whenFieldUnset)),
+  )
+
+  // A field this platform can't act on isn't shown (e.g. the icon field on macOS).
+  // Either its token is substituted somewhere, or some step exists to handle it
+  // once filled — measured over every step, so filling one can't hide its own field.
+  const modalFields = (modalTool?.modal?.fields ?? []).filter((field) => {
+    const token = `{${field.key}}`
+    return (
+      platformSteps.some((s) => s.command.includes(token) || s.whenFieldSet === field.key) ||
+      modalTool?.modal?.prompt?.includes(token)
+    )
+  })
 
   const allCollapsed = sortedCategories.every((c) => collapsed[c.id])
   const toggleAllSections = () =>
@@ -191,61 +217,81 @@ export function App() {
 
       {aiSetupOpen && <AiSetupModal platform={platform} onClose={() => setAiSetupOpen(false)} />}
 
-      {detectOpen && <DetectModal platform={platform} onApply={setInstalledMany} onClose={() => setDetectOpen(false)} />}
+      {detectOpen && (
+        <DetectModal
+          platform={platform}
+          installed={installed}
+          onApply={setInstalledMany}
+          onClose={() => setDetectOpen(false)}
+        />
+      )}
 
       {modalTool?.modal && (
         <Modal title={modalTool.name} onClose={() => setModalToolId(null)}>
           <div className="flex flex-col gap-4">
             {modalTool.modal.intro && <p className="text-sm leading-relaxed text-fg-muted">{modalTool.modal.intro}</p>}
-            {modalFields.length > 0 && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {modalFields.map((field) => (
-                  <label key={field.key} className="flex flex-col gap-1">
-                    <span className="text-xs font-medium text-fg-subtle">{field.label}</span>
-                    <input
-                      type="text"
-                      value={fieldValues[field.key] ?? ''}
-                      onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
-                      placeholder={field.placeholder}
-                      spellCheck={false}
-                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 font-mono text-[13px] text-fg placeholder:text-fg-subtle transition-colors hover:border-border-strong focus:border-accent"
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
             {modalTool.modal.prereq && (
               <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-fg-muted">
                 <span className="font-semibold text-fg">Prerequisite: </span>
                 {modalTool.modal.prereq}
               </p>
             )}
-            {modalTool.modal.steps
-              ?.flatMap((step) => {
-                const command = typeof step.command === 'string' ? step.command : step.command[platform]
-                return command ? [{ note: step.note, command, manual: step.manual }] : []
-              })
-              .map((step, i) => (
-                <div key={i} className="flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 text-xs text-fg-subtle">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted font-mono text-[11px] text-fg-muted">
-                      {i + 1}
-                    </span>
-                    {step.note && <span>{step.note}</span>}
-                  </div>
-                  {step.manual ? (
-                    <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[13px] leading-relaxed text-fg-muted">
-                      {renderTokens(step.command, modalFields, fieldValues)}
-                    </p>
-                  ) : (
-                    <CommandBlock
-                      command={fillTokens(step.command, modalFields, fieldValues)}
-                      display={renderTokens(step.command, modalFields, fieldValues)}
-                      label="Copy"
+            {modalFields.length > 0 && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {modalFields.map((field) =>
+                  field.kind === 'image' ? (
+                    <ImageDropField
+                      key={field.key}
+                      label={field.label}
+                      format={iconFormatFor(platform)}
+                      value={fieldValues[field.key] ?? ''}
+                      onChange={(base64) => setFieldValues((prev) => ({ ...prev, [field.key]: base64 }))}
                     />
-                  )}
+                  ) : (
+                    <label key={field.key} className="flex flex-col gap-1">
+                      <span className="text-xs font-medium text-fg-subtle">{field.label}</span>
+                      <input
+                        type="text"
+                        value={fieldValues[field.key] ?? ''}
+                        onChange={(e) => setFieldValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                        placeholder={field.placeholder}
+                        spellCheck={false}
+                        className="w-full rounded-lg border border-border bg-bg px-3 py-2 font-mono text-[13px] text-fg placeholder:text-fg-subtle transition-colors hover:border-border-strong focus:border-accent"
+                      />
+                    </label>
+                  ),
+                )}
+              </div>
+            )}
+            {modalSteps.map((step, i) => (
+              <div key={i} className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 text-xs text-fg-subtle">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted font-mono text-[11px] text-fg-muted">
+                    {i + 1}
+                  </span>
+                  {step.note && <span>{step.note}</span>}
                 </div>
-              ))}
+                {step.manual ? (
+                  <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[13px] leading-relaxed text-fg-muted">
+                    {renderTokens(step.command, modalFields, fieldValues)}
+                  </p>
+                ) : (
+                  <CommandBlock
+                    command={fillTokens(
+                      step.command,
+                      modalFields,
+                      fieldValues,
+                      step.shellQuoted ? shellSingleQuote(platform) : undefined,
+                    )}
+                    display={renderTokens(step.command, modalFields, fieldValues)}
+                    label="Copy"
+                    multiline={step.multiline}
+                    download={step.download}
+                    filename={step.filename}
+                  />
+                )}
+              </div>
+            ))}
             {modalTool.modal.prompt && (
               <CommandBlock
                 command={fillTokens(modalTool.modal.prompt, modalFields, fieldValues)}

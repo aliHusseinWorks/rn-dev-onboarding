@@ -47,7 +47,7 @@ export function CategorySection({ category, platform, installed, query, open, on
             className={`ml-auto shrink-0 text-fg-subtle transition-transform ${expanded ? '' : '-rotate-90'}`}
           />
         </button>
-        {availableIds.length > 0 && (
+        {category.checkable !== false && availableIds.length > 0 && (
           <Tooltip
             label={allDone ? 'Clear the installed checkmarks in this section.' : 'Check off every tool in this section as installed.'}
             side="bottom"

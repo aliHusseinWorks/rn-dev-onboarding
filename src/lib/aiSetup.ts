@@ -98,7 +98,7 @@ function eligibleTools(categoryId: string, platform: PlatformId): Tool[] {
 export function aiSetupGroups(platform: PlatformId): AiSetupGroup[] {
   const groups: AiSetupGroup[] = []
   for (const category of [...CATEGORIES].sort((a, b) => a.order - b.order)) {
-    if (category.id === 'project') continue
+    if (category.checkable === false) continue
     const tools = eligibleTools(category.id, platform)
     if (tools.length > 0) {
       groups.push({ id: category.id, title: category.title, tools: tools.map((t) => ({ id: t.id, name: t.name })) })
@@ -120,7 +120,7 @@ export function generateAiSetup(
   const excludedNames: string[] = []
 
   for (const category of [...CATEGORIES].sort((a, b) => a.order - b.order)) {
-    if (category.id === 'project') continue
+    if (category.checkable === false) continue
     const bodies: string[] = []
     for (const tool of eligibleTools(category.id, platform)) {
       if (excluded.has(tool.id)) {

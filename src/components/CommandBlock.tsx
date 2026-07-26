@@ -13,7 +13,8 @@ interface Props {
   filename?: string
   // Show a download button in the multiline header, saving `command` as `filename`.
   download?: boolean
-  // Optional styled rendering (e.g. highlighted {tokens}); copying always uses `command`.
+  // Optional rendering override (e.g. highlighted {tokens}, trimmed whitespace);
+  // copying always uses `command`.
   display?: ReactNode
 }
 

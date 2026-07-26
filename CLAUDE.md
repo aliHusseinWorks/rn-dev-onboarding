@@ -34,6 +34,16 @@ Despite the repo name, this is **not a React Native mobile app**. It is a single
 - **Package manager:** pnpm (`pnpm-lock.yaml`).
 - **Run:** `pnpm dev` (http://localhost:5173) · `pnpm build` (tsc -b + vite build) · `pnpm preview`. Full detect flow locally: `pnpm build && npx wrangler pages dev dist` (:8788; `pnpm dev` proxies `/report` there).
 - **Lint:** `pnpm lint` (oxlint). No formatter — match the existing style by hand.
+- **graphify:** required, same as pnpm — `uv tool install graphifyy` (the Graphify card has the full sequence). The graph is committed, so a clone can query it straight away.
 - **Deploy:** Cloudflare Pages (<https://rn-dev-onboarding.pages.dev>) — site + `functions/` deploy together on push to `main` via Cloudflare's git integration; never deploy from the working tree (see `docs/decisions/0005`). Bindings (KV) live in `wrangler.toml`.
 
 Everything structural — folder map, data flow, conventions, which pattern to use for what — lives in `docs/ARCHITECTURE.md`.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"`. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).

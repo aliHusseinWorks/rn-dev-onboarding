@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CheckCircle2, RefreshCw } from 'lucide-react'
+import { CheckCircle2, RefreshCw, Undo2 } from 'lucide-react'
 import { detectGroups, parseResultLine, RESULT_PREFIX } from '../lib/detect'
 import { generateDetectScript } from '../lib/detectScript'
 import { PLATFORM_INFO, type PlatformId } from '../lib/platform'
@@ -9,8 +9,10 @@ import { Modal } from './Modal'
 
 interface Props {
   platform: PlatformId
-  // Batch-set installed state; value=true for found tools, false only via
-  // the explicit "uncheck" button.
+  // Read only to snapshot what a scan is about to overwrite.
+  installed: Record<string, boolean>
+  // Batch-set installed state. A scan applies its whole result, both
+  // directions — Undo is what protects a tick the scan couldn't see.
   onApply: (ids: string[], value: boolean) => void
   onClose: () => void
 }
@@ -20,9 +22,12 @@ interface Applied {
   notFound: string[]
   // Platform id the scan actually ran on, when it differs from the page.
   mismatch: string | null
+  // Pre-scan state of every scanned tool, replayed verbatim by Undo.
+  before: { on: string[]; off: string[] }
+  undone: boolean
 }
 
-export function DetectModal({ platform, onApply, onClose }: Props) {
+export function DetectModal({ platform, installed, onApply, onClose }: Props) {
   const [manualText, setManualText] = useState('')
   const [manualError, setManualError] = useState(false)
   const [applied, setApplied] = useState<Applied | null>(null)
@@ -40,9 +45,16 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
     // arbitrary ids into localStorage.
     const found = report.found.filter((id) => scannableIds.includes(id))
     const mismatch = report.platform !== platform
+    // A scan from another platform says nothing about this checklist, so it
+    // ticks what it found and clears nothing.
     const notFound = mismatch ? [] : scannableIds.filter((id) => !found.includes(id))
+    const before = {
+      on: scannableIds.filter((id) => installed[id]),
+      off: scannableIds.filter((id) => !installed[id]),
+    }
     onApply(found, true)
-    setApplied({ found, notFound, mismatch: mismatch ? report.platform : null })
+    onApply(notFound, false)
+    setApplied({ found, notFound, mismatch: mismatch ? report.platform : null, before, undone: false })
   }
 
   // Auto-apply the relay report exactly once per session code (guards Strict
@@ -72,10 +84,11 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
     session.restart()
   }
 
-  const uncheckMissing = () => {
+  const undo = () => {
     if (!applied) return
-    onApply(applied.notFound, false)
-    setApplied({ ...applied, notFound: [] })
+    onApply(applied.before.on, true)
+    onApply(applied.before.off, false)
+    setApplied({ ...applied, undone: true })
   }
 
   return (
@@ -101,7 +114,7 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
                 Waiting for the scan… checks every 2s, code expires in 10 min.
               </span>
             )}
-            {session.status === 'received' && (
+            {session.status === 'received' && !applied?.undone && (
               <span className="flex items-center gap-1.5 text-accent">
                 <CheckCircle2 size={14} /> Result received.
               </span>
@@ -123,7 +136,15 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
           </div>
         )}
 
-        <CommandBlock command={script} label="Copy scan script" filename={isWindows ? 'scan.ps1' : 'scan.sh'} download multiline />
+        <CommandBlock
+          command={script}
+          // The script's trailing newline matters when pasted, not on screen.
+          display={script.trimEnd()}
+          label="Copy scan script"
+          filename={isWindows ? 'scan.ps1' : 'scan.sh'}
+          download
+          multiline
+        />
 
         <div className="flex flex-col gap-1.5">
           <p className="text-xs text-fg-subtle">
@@ -155,39 +176,48 @@ export function DetectModal({ platform, onApply, onClose }: Props) {
 
         {applied && (
           <div className="flex flex-col gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-3 text-xs">
-            <p className="flex items-center gap-1.5 font-medium text-fg">
-              <CheckCircle2 size={14} className="text-accent" />
-              Marked {applied.found.length} {applied.found.length === 1 ? 'tool' : 'tools'} as installed
-              {applied.found.length > 0 && (
-                <span className="font-normal text-fg-muted"> — {applied.found.map(nameOf).join(', ')}</span>
-              )}
-            </p>
-            {applied.mismatch && (
-              <p className="text-warning">
-                This scan ran on <span className="font-mono">{applied.mismatch}</span> but the page shows{' '}
-                <span className="font-mono">{platform}</span> — found tools were still ticked; switch platform to review.
-              </p>
-            )}
-            {applied.notFound.length > 0 && (
-              <div className="flex flex-col gap-1.5">
-                <p className="text-fg-muted">
-                  {applied.notFound.length} scanned {applied.notFound.length === 1 ? 'tool was' : 'tools were'} not
-                  found: {applied.notFound.map(nameOf).join(', ')}.
+            {applied.undone ? (
+              <p className="text-fg-muted">Undone — the checklist is back to how it was before the scan.</p>
+            ) : (
+              <>
+                <p className="flex items-center gap-1.5 font-medium text-fg">
+                  <CheckCircle2 size={14} className="text-accent" />
+                  Marked {applied.found.length} {applied.found.length === 1 ? 'tool' : 'tools'} as installed
+                  {applied.found.length > 0 && (
+                    <span className="font-normal text-fg-muted"> — {applied.found.map(nameOf).join(', ')}</span>
+                  )}
                 </p>
-                <button
-                  onClick={uncheckMissing}
-                  className="w-fit rounded-md border border-border bg-surface px-2 py-1 text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
-                >
-                  Uncheck these {applied.notFound.length} on the page too
-                </button>
-              </div>
+                {applied.mismatch && (
+                  <p className="text-warning">
+                    This scan ran on <span className="font-mono">{applied.mismatch}</span> but the page shows{' '}
+                    <span className="font-mono">{platform}</span> — found tools were still ticked, but nothing was
+                    cleared. Switch platform to review.
+                  </p>
+                )}
+                {applied.notFound.length > 0 && (
+                  <p className="text-fg-muted">
+                    Cleared {applied.notFound.length} {applied.notFound.length === 1 ? 'tool' : 'tools'} the scan
+                    didn’t find: {applied.notFound.map(nameOf).join(', ')}.
+                  </p>
+                )}
+              </>
             )}
-            <button
-              onClick={scanAgain}
-              className="inline-flex w-fit items-center gap-1 text-fg-subtle underline decoration-dotted underline-offset-2 transition-colors hover:text-fg cursor-pointer"
-            >
-              <RefreshCw size={12} /> Scan again
-            </button>
+            <div className="flex flex-wrap items-center gap-3">
+              {!applied.undone && (
+                <button
+                  onClick={undo}
+                  className="inline-flex items-center gap-1 text-fg-subtle underline decoration-dotted underline-offset-2 transition-colors hover:text-fg cursor-pointer"
+                >
+                  <Undo2 size={12} /> Undo
+                </button>
+              )}
+              <button
+                onClick={scanAgain}
+                className="inline-flex items-center gap-1 text-fg-subtle underline decoration-dotted underline-offset-2 transition-colors hover:text-fg cursor-pointer"
+              >
+                <RefreshCw size={12} /> Scan again
+              </button>
+            </div>
           </div>
         )}
       </div>

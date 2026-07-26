@@ -1,5 +1,5 @@
 import type { PlatformId } from './platform'
-import { TOOLS, type Category, type Tool, type ToolAction } from './tools'
+import { CATEGORIES, TOOLS, type Category, type Tool, type ToolAction } from './tools'
 
 export const ARCH_SHORT: Record<PlatformId, string> = {
   'mac-arm': 'Apple Silicon',
@@ -21,6 +21,12 @@ export function matchesQuery(tool: Tool, category: Category | undefined, query: 
     tool.description.toLowerCase().includes(q) ||
     (category?.title.toLowerCase().includes(q) ?? false)
   )
+}
+
+// Cards in a per-project section are actions you repeat in every repo, not
+// machine state, so nothing tracks them as installed.
+export function isCheckable(tool: Tool): boolean {
+  return CATEGORIES.find((c) => c.id === tool.category)?.checkable !== false
 }
 
 export function resolveAction(tool: Tool, platform: PlatformId): ToolAction | undefined {
@@ -50,9 +56,12 @@ export function buttonLabel(action: ToolAction, platform: PlatformId): string {
 
 // Concatenate every runnable command in a category for the current OS.
 export function copyAllForCategory(categoryId: string, platform: PlatformId): string {
-  return toolsInCategory(categoryId)
+  const commands = toolsInCategory(categoryId)
     .map((t) => resolveAction(t, platform))
     .filter((a): a is ToolAction => a?.type === 'command')
     .map((a) => a.value)
-    .join('\n\n')
+  // Trailing newline for the same reason the scan script has one: pasted without
+  // it the last command sits at the prompt unexecuted, and a partial install
+  // reads as a complete one.
+  return commands.length > 0 ? `${commands.join('\n\n')}\n` : ''
 }

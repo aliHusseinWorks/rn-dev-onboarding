@@ -41,8 +41,13 @@ src/
     aiSetup.ts          "Full AI setup" prompt builder
     setupPrompt.ts      team prompts (workspace setup, plugin fill, run-docs)
     tokens.tsx          {token} fill/render helpers
+    iconImage.ts        canvas resize + PNG-in-ICO packing for dropped icons
     useCopy.ts, useLocalStorage.ts, useDetectSession.ts   hooks (tuple returns like React's)
     versions.ts         latest-release badges (bare fetch)
+public/               served at the site root: favicon, plus the herdr launcher
+                      scripts and icon the pasted one-liner fetches
+graphify-out/         the committed knowledge graph — graph.json, manifest.json,
+                      GRAPH_REPORT.md; everything else generated is ignored
 wrangler.toml         Pages project + KV binding
 docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
                       decisions/ (see CLAUDE.md contract; README stays at root)
@@ -59,6 +64,7 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
 | Network calls | bare `fetch`, silent fallback (`catch { return null }`) like `versions.ts` | axios/fetch wrappers |
 | Icons | `lucide-react`, numeric `size` prop 12–22 | other icon sets |
 | Copy-to-clipboard, command display | `CommandBlock` + `useCopy` | rebuilding either |
+| An image/file input in a tool modal | a `kind: 'image'` `ModalField` (renders `ImageDropField`) | a modal branched on `tool.id` |
 | Overlays | `Modal` component | new modal implementations |
 | Server-side anything | a Pages Function under `functions/` bound in `wrangler.toml` | separate services |
 

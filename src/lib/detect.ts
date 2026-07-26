@@ -26,8 +26,12 @@ export interface DetectSpec {
   // MSIX/Store package name (Get-AppxPackage) — Windows only.
   winAppx?: string
   // Substring searched in ~/.claude.json (fixed-string match) — how MCP
-  // servers ("server-key") and plugins (name@marketplace) are detected.
+  // servers ("server-key") are detected.
   claudeConfig?: string
+  // Plugins are read from ~/.claude/settings.json instead: ~/.claude.json only
+  // gains an entry for a plugin once it has been used, so a fresh install reads
+  // as missing there.
+  claudePlugin?: string
 }
 
 // Detection config lives here, not on the Tool, so tools.ts stays a pure
@@ -128,8 +132,9 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   uv: { bins: ['uv'] },
   graphify: { bins: ['graphify'] },
   fastlane: { bins: ['fastlane'] },
-  superpowers: { claudeConfig: 'superpowers@' },
-  'ui-ux-pro-max': { claudeConfig: 'ui-ux-pro-max@' },
+  superpowers: { claudePlugin: 'superpowers@' },
+  ponytail: { claudePlugin: 'ponytail@' },
+  'ui-ux-pro-max': { claudePlugin: 'ui-ux-pro-max@' },
   context7: { claudeConfig: '"context7"' },
   'atlassian-mcp': { claudeConfig: '"atlassian"' },
   'xcodebuild-mcp': { claudeConfig: '"XcodeBuildMCP"' },
@@ -137,7 +142,7 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   'sentry-mcp': { claudeConfig: '"sentry"' },
   'firebase-mcp': { claudeConfig: '"firebase"' },
   'figma-mcp': { claudeConfig: '"figma-dev-mode"' },
-  'slack-mcp': { claudeConfig: 'slack@claude-plugins-official' },
+  'slack-mcp': { claudePlugin: 'slack@claude-plugins-official' },
   'zoho-cliq-mcp': { claudeConfig: '"zoho-cliq"' },
   'teams-mcp': { claudeConfig: '"teams"' },
   'postman-mcp': { claudeConfig: '"postman"' },
@@ -150,6 +155,7 @@ export type DetectCheck =
   | { kind: 'path'; value: string }
   | { kind: 'appx'; value: string }
   | { kind: 'config'; value: string }
+  | { kind: 'plugin'; value: string }
 
 export function checksFor(spec: DetectSpec, os: OsId): DetectCheck[] {
   const checks: DetectCheck[] = []
@@ -159,6 +165,7 @@ export function checksFor(spec: DetectSpec, os: OsId): DetectCheck[] {
   checks.push(...paths.map((value): DetectCheck => ({ kind: 'path', value })))
   if (os === 'win' && spec.winAppx) checks.push({ kind: 'appx', value: spec.winAppx })
   if (spec.claudeConfig) checks.push({ kind: 'config', value: spec.claudeConfig })
+  if (spec.claudePlugin) checks.push({ kind: 'plugin', value: spec.claudePlugin })
   return checks
 }
 
@@ -179,6 +186,8 @@ function describeCheck(check: DetectCheck, os: OsId): string {
       return `Store package "${check.value}"`
     case 'config':
       return `~/.claude.json has ${check.value}`
+    case 'plugin':
+      return `~/.claude/settings.json has ${check.value}`
   }
 }
 
@@ -199,6 +208,7 @@ export interface DetectGroup {
 export function detectGroups(platform: PlatformId): DetectGroup[] {
   const groups: DetectGroup[] = []
   for (const category of [...CATEGORIES].sort((a, b) => a.order - b.order)) {
+    if (category.checkable === false) continue
     const tools = toolsInCategory(category.id).filter((t) => isDetectable(t, platform))
     if (tools.length === 0) continue
     groups.push({

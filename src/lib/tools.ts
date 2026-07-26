@@ -19,14 +19,30 @@ export interface ModalStep {
   // true = reference material for later (per-repo usage), not part of machine
   // setup — shown in the modal but excluded from the AI setup prompt.
   docsOnly?: boolean
+  // true = field values land inside single-quoted shell literals in this
+  // command, so escape embedded quotes when filling the copyable text.
+  shellQuoted?: boolean
+  // Same three options ToolModal.prompt already has, for steps whose command is
+  // a whole script rather than a line to paste.
+  multiline?: boolean
+  download?: boolean
+  filename?: string | Partial<Record<PlatformId, string>>
+  // Shown only while the named field has (or hasn't) a value the user entered,
+  // so a step can offer a different route once something is filled in.
+  whenFieldSet?: string
+  whenFieldUnset?: string
 }
 
 // A fill-in input shown at the top of the modal. Its value replaces every
-// {key} token in the modal's step commands and prompt.
+// {key} token in the modal's step commands and prompt. Fields whose token
+// appears in no command for the current platform are hidden.
 export interface ModalField {
   key: string
   label: string
-  placeholder: string
+  placeholder?: string
+  // 'image' = an image drop/picker instead of a text box; the value is the
+  // base64 of an icon converted in the browser, wrapped when filled in.
+  kind?: 'text' | 'image'
 }
 
 export interface ToolModal {
@@ -63,18 +79,19 @@ export interface Category {
   description: string
   accent: string
   order: number
-  // false = excluded from the generated "install everything" setup script
-  // (e.g. MCP servers, which are configured inside Claude Code, not installed).
-  inScript?: boolean
+  // false = reusable per-project actions rather than machine state, so the
+  // cards carry no checkmark and the section is left out of the progress
+  // count, the AI setup and the detect scan.
+  checkable?: boolean
 }
 
 export const CATEGORIES: Category[] = [
   { id: 'essentials', title: 'System Essentials', description: 'Install these first, in order.', accent: '#38bdf8', order: 1 },
   { id: 'apps', title: 'Desktop Apps', description: 'Editors, IDEs, debuggers, and team chat.', accent: '#a78bfa', order: 2 },
   { id: 'ai', title: 'AI Tools & Claude Code', description: 'Agentic CLIs, prerequisites, and Claude Code plugins.', accent: '#fbbf24', order: 3 },
-  { id: 'mcp', title: 'MCP Servers', description: 'Connect Claude Code to your tools with `claude mcp add`.', accent: '#2dd4bf', order: 4, inScript: false },
-  { id: 'rn', title: 'React Native Setup', description: 'Create a project and verify the toolchain.', accent: '#61dafb', order: 5 },
-  { id: 'project', title: 'Project Setup', description: 'Scaffold a Claude workspace in a repo.', accent: '#f472b6', order: 6 },
+  { id: 'mcp', title: 'MCP Servers', description: 'Connect Claude Code to your tools with `claude mcp add`.', accent: '#2dd4bf', order: 4 },
+  { id: 'project', title: 'Project Setup', description: 'Scaffold a Claude workspace in a repo.', accent: '#f472b6', order: 5, checkable: false },
+  { id: 'rn', title: 'React Native Setup', description: 'Create a project and verify the toolchain.', accent: '#61dafb', order: 6, checkable: false },
 ]
 
 // action builders keep the config table terse
@@ -89,6 +106,26 @@ const ANDROID_ENV_MAC = `printf '\\nexport ANDROID_HOME=$HOME/Library/Android/sd
 const ANDROID_ENV_LINUX = `printf '\\nexport ANDROID_HOME=$HOME/Android/Sdk\\nexport PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools\\n' >> ~/.bashrc && source ~/.bashrc`
 const ANDROID_ENV_WIN =
   '[Environment]::SetEnvironmentVariable("ANDROID_HOME", "$env:LOCALAPPDATA\\Android\\Sdk", "User"); [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:LOCALAPPDATA\\Android\\Sdk\\platform-tools;$env:LOCALAPPDATA\\Android\\Sdk\\emulator", "User")'
+
+// Same-origin like DETECT_ENDPOINT — the launcher scripts and the icon ship in
+// public/, so a paste reaches whichever origin served the page.
+const SITE = typeof location !== 'undefined' ? location.origin : 'https://rn-dev-onboarding.pages.dev'
+
+// The launcher logic lives in public/herdr-launcher.{ps1,sh} so the common case
+// is one paste with nothing to download. It takes the form values as arguments
+// and pulls herdr's icon from the site; the leading-brace check there is what
+// handles an unfilled {dest}.
+// -IconUrl/--icon-url is passed rather than left to the script's default so the
+// icon comes from whichever origin served the page, not always production.
+const HERDR_LAUNCH_WIN = `& ([scriptblock]::Create((irm ${SITE}/herdr-launcher.ps1))) -Dest '{dest}' -IconUrl ${SITE}/herdr.ico`
+const HERDR_LAUNCH_UNIX = `curl -fsSL ${SITE}/herdr-launcher.sh | sh -s -- --dest '{dest}' --icon-url ${SITE}/herdr.png`
+
+// A dropped icon can't be hosted, so its bytes ride along in the command and get
+// written to a temp file. Still one line: a multi-line script with a here-string
+// silently does nothing when pasted, and asking the user to download the icon and
+// leave it at an exact path failed the moment a browser saved it anywhere else.
+const HERDR_LAUNCH_WIN_ICON = `$i = [IO.Path]::GetTempFileName(); [IO.File]::WriteAllBytes($i, [Convert]::FromBase64String('{iconData}')); & ([scriptblock]::Create((irm ${SITE}/herdr-launcher.ps1))) -Dest '{dest}' -IconFile $i; Remove-Item $i -Force`
+const HERDR_LAUNCH_UNIX_ICON = `ICO=$(mktemp); printf %s '{iconData}' | base64 -d > "$ICO"; curl -fsSL ${SITE}/herdr-launcher.sh | sh -s -- --dest '{dest}' --icon-file "$ICO"; rm -f "$ICO"`
 
 export const TOOLS: Tool[] = [
   // ─── System Essentials ───────────────────────────────────────────────
@@ -126,8 +163,8 @@ export const TOOLS: Tool[] = [
         { key: 'git-email', label: 'Work email', placeholder: 'you@company.com' },
       ],
       steps: [
-        { command: 'git config --global user.name "{git-name}"' },
-        { command: 'git config --global user.email "{git-email}"' },
+        { command: `git config --global user.name '{git-name}'`, shellQuoted: true },
+        { command: `git config --global user.email '{git-email}'`, shellQuoted: true },
       ],
     },
     actions: {
@@ -152,8 +189,8 @@ export const TOOLS: Tool[] = [
       steps: [
         { command: 'fnm use', note: 'Inside a repo — switches this terminal to the version in its .nvmrc.', docsOnly: true },
         { command: 'fnm install', note: 'To upgrade a repo: edit its .nvmrc to the new version, then run this inside it. Other repos are unaffected.', docsOnly: true },
-        { command: 'fnm install {node-version}; fnm use {node-version}', note: 'No .nvmrc? Install any version and switch this terminal to it directly.', docsOnly: true },
-        { command: 'fnm default {node-version}', note: 'Make a version the default for every terminal and folder without a .nvmrc.', docsOnly: true },
+        { command: `fnm install '{node-version}'; fnm use '{node-version}'`, note: 'No .nvmrc? Install any version and switch this terminal to it directly.', docsOnly: true, shellQuoted: true },
+        { command: `fnm default '{node-version}'`, note: 'Make a version the default for every terminal and folder without a .nvmrc.', docsOnly: true, shellQuoted: true },
         { command: 'fnm list', note: 'See installed versions and which is the default.', docsOnly: true },
       ],
     },
@@ -209,7 +246,7 @@ export const TOOLS: Tool[] = [
       prereq: 'Corepack enabled (card above).',
       fields: [{ key: 'version', label: 'pnpm version', placeholder: 'latest' }],
       steps: [
-        { command: 'corepack use pnpm@{version}', note: 'Inside a repo — changes its pin and updates package.json for the whole team.', docsOnly: true },
+        { command: `corepack use pnpm@'{version}'`, note: 'Inside a repo — changes its pin and updates package.json for the whole team.', docsOnly: true, shellQuoted: true },
       ],
     },
     actions: {
@@ -232,7 +269,7 @@ export const TOOLS: Tool[] = [
       prereq: 'Corepack enabled (card above).',
       fields: [{ key: 'version', label: 'Yarn version', placeholder: 'stable' }],
       steps: [
-        { command: 'corepack use yarn@{version}', note: 'Inside a repo — changes its pin and updates package.json for the whole team.', docsOnly: true },
+        { command: `corepack use yarn@'{version}'`, note: 'Inside a repo — changes its pin and updates package.json for the whole team.', docsOnly: true, shellQuoted: true },
       ],
     },
     actions: {
@@ -280,12 +317,24 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    id: 'fastlane',
+    category: 'essentials',
+    name: 'fastlane',
+    description: 'Automate iOS & Android builds and releases.',
+    icon: 'ship',
+    order: 11,
+    docsUrl: 'https://docs.fastlane.tools/',
+    version: { github: 'fastlane/fastlane' },
+    note: 'macOS only here — iOS lanes require it, and releases are cut from macOS or CI. It needs Ruby, which Homebrew handles.',
+    actions: { ...mac(cmd('brew install fastlane')) },
+  },
+  {
     id: 'ssh-key',
     category: 'essentials',
     name: 'SSH key for Bitbucket',
     description: 'Generate a key so you can clone repos.',
     icon: 'key-round',
-    order: 11,
+    order: 12,
     docsUrl: 'https://support.atlassian.com/bitbucket-cloud/docs/set-up-personal-ssh-keys-on-macos/',
     modal: {
       intro: 'Generate a key, add it to Bitbucket, verify — then `git clone` away.',
@@ -293,12 +342,13 @@ export const TOOLS: Tool[] = [
       steps: [
         {
           command: {
-            'mac-arm': 'ssh-keygen -t ed25519 -C "{email}" && pbcopy < ~/.ssh/id_ed25519.pub',
-            'mac-intel': 'ssh-keygen -t ed25519 -C "{email}" && pbcopy < ~/.ssh/id_ed25519.pub',
-            linux: 'ssh-keygen -t ed25519 -C "{email}" && cat ~/.ssh/id_ed25519.pub',
-            'win-x64': 'ssh-keygen -t ed25519 -C "{email}"; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip',
-            'win-arm': 'ssh-keygen -t ed25519 -C "{email}"; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip',
+            'mac-arm': `ssh-keygen -t ed25519 -C '{email}' && pbcopy < ~/.ssh/id_ed25519.pub`,
+            'mac-intel': `ssh-keygen -t ed25519 -C '{email}' && pbcopy < ~/.ssh/id_ed25519.pub`,
+            linux: `ssh-keygen -t ed25519 -C '{email}' && cat ~/.ssh/id_ed25519.pub`,
+            'win-x64': `ssh-keygen -t ed25519 -C '{email}'; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip`,
+            'win-arm': `ssh-keygen -t ed25519 -C '{email}'; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip`,
           },
+          shellQuoted: true,
           note: 'Run anywhere — the key is saved machine-wide in ~/.ssh and works for every repo. ssh-keygen asks a few questions (save location, passphrase); hit Enter at each to accept the defaults. Your public key lands on the clipboard (Linux: printed — copy it).',
         },
         {
@@ -628,18 +678,6 @@ export const TOOLS: Tool[] = [
       ...win(cmd('npx react-native doctor')),
     },
   },
-  {
-    id: 'fastlane',
-    category: 'rn',
-    name: 'fastlane',
-    description: 'Automate iOS & Android builds and releases.',
-    icon: 'ship',
-    order: 3,
-    docsUrl: 'https://docs.fastlane.tools/',
-    version: { github: 'fastlane/fastlane' },
-    note: 'macOS only here — iOS lanes require it, and releases are cut from macOS or CI. It needs Ruby, which Homebrew handles.',
-    actions: { ...mac(cmd('brew install fastlane')) },
-  },
 
   // ─── AI Tools & Claude Code ────────────────────────────────────────────────────────
   {
@@ -683,6 +721,40 @@ export const TOOLS: Tool[] = [
     order: 2,
     docsUrl: 'https://github.com/ogulcancelik/herdr',
     version: { github: 'ogulcancelik/herdr' },
+    modal: {
+      intro: 'One paste gives you a double-clickable herdr launcher carrying its own icon — nothing to download. herdr reopens the workspaces it saved itself, so the launcher only has to start it.',
+      prereq: 'herdr installed (this card).',
+      fields: [
+        { key: 'dest', label: 'Install to', placeholder: 'Desktop' },
+        { key: 'iconData', label: 'Custom icon', kind: 'image' },
+      ],
+      steps: [
+        {
+          command: {
+            'mac-arm': HERDR_LAUNCH_UNIX,
+            'mac-intel': HERDR_LAUNCH_UNIX,
+            linux: HERDR_LAUNCH_UNIX,
+            'win-x64': HERDR_LAUNCH_WIN,
+            'win-arm': HERDR_LAUNCH_WIN,
+          },
+          note: 'Paste in a terminal. Both fields are optional — leave them alone and the launcher lands on your Desktop with herdr\'s own icon. Linux: right-click the launcher → Allow Launching the first time.',
+          docsOnly: true,
+          shellQuoted: true,
+          whenFieldUnset: 'iconData',
+        },
+        {
+          command: {
+            linux: HERDR_LAUNCH_UNIX_ICON,
+            'win-x64': HERDR_LAUNCH_WIN_ICON,
+            'win-arm': HERDR_LAUNCH_WIN_ICON,
+          },
+          note: 'Paste in a terminal. Your icon is carried inside this line, so it is long — copy it with the button rather than by hand.',
+          docsOnly: true,
+          shellQuoted: true,
+          whenFieldSet: 'iconData',
+        },
+      ],
+    },
     actions: {
       ...mac(cmd('curl -fsSL https://herdr.dev/install.sh | sh')),
       linux: cmd('curl -fsSL https://herdr.dev/install.sh | sh'),
@@ -694,7 +766,7 @@ export const TOOLS: Tool[] = [
     id: 'uv',
     category: 'ai',
     name: 'uv',
-    description: 'Python tool manager. Prerequisite for Graphify.',
+    description: 'Python tool manager — brings its own Python. For Graphify.',
     icon: 'feather',
     order: 3,
     docsUrl: 'https://docs.astral.sh/uv/',
@@ -732,12 +804,37 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://github.com/Graphify-Labs/graphify',
     version: { pypi: 'graphifyy' },
     modal: {
-      intro: 'Builds a knowledge graph you can query and explain.',
-      prereq: 'Python 3.10+ and uv — install the uv card first.',
+      intro: 'Builds a knowledge graph you can query instead of grepping. The last two steps are what make Claude Code actually reach for it — without them the graph sits there unread.',
+      prereq: 'uv — install the uv card first. It fetches its own Python, so you do not need one on the machine.',
       steps: [
         { command: 'uv tool install graphifyy', note: 'Package name is graphifyy (double y); the command is graphify.' },
         { command: 'graphify install' },
-        { command: '/graphify .', note: 'Run this inside Claude Code.' },
+        { command: '/graphify .', note: 'Run this inside Claude Code — builds graphify-out/ for the repo you are in.' },
+        {
+          command: 'graphify claude install',
+          note: "Once per repo. Adds a graphify section to that repo's CLAUDE.md and registers hooks that catch an agent grepping when it could have queried the graph.",
+        },
+        {
+          command: 'graphify hook install',
+          note: 'Once per repo. Rebuilds the graph on commit, so a query never answers from a graph older than the code.',
+        },
+      ],
+    },
+  },
+  {
+    id: 'ponytail',
+    category: 'ai',
+    name: 'Ponytail',
+    description: 'Stops over-engineering — least code, no stray deps.',
+    icon: 'scissors',
+    order: 6,
+    docsUrl: 'https://github.com/DietrichGebert/ponytail',
+    note: 'Ships two Node lifecycle hooks that run on Claude Code events — skim them before you approve. Takes effect in a new session.',
+    modal: {
+      intro: 'A lazy-senior-dev mindset: no speculative abstractions, no scaffolding for later, standard library before a new dependency. Send each command as its own prompt in Claude Code.',
+      steps: [
+        { command: '/plugin marketplace add DietrichGebert/ponytail', note: 'Send this as its own prompt.' },
+        { command: '/plugin install ponytail@ponytail', note: 'Then send this as a separate prompt.' },
       ],
     },
   },
@@ -899,7 +996,7 @@ export const TOOLS: Tool[] = [
       fields: [{ key: 'mcp-url', label: 'Your Zoho MCP URL', placeholder: 'https://mcp.zoho.com/…' }],
       steps: [
         { command: 'Zoho MCP console → Add Tools → Cliq → copy the server URL', note: 'Generate your MCP URL first and paste it in the field above.', manual: true },
-        { command: 'claude mcp add --transport http zoho-cliq "{mcp-url}"', note: 'Then approve OAuth.' },
+        { command: `claude mcp add --transport http zoho-cliq '{mcp-url}'`, note: 'Then approve OAuth.', shellQuoted: true },
       ],
     },
   },
@@ -977,7 +1074,7 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://docs.claude.com/en/docs/claude-code/overview',
     modal: {
       intro: 'Our shared RN tooling. Every dev: run steps 1–2 inside Claude Code (each command as its own prompt). Plugin author only: steps 3–5 scaffold and publish the plugin in the first place.',
-      prereq: 'Fill the fields above — they prefill the commands and prompt below.',
+      prereq: 'Fill both fields below — they prefill the commands and the prompt.',
       fields: [
         { key: 'repo', label: 'Plugin repo (org/repo)', placeholder: 'yourorg/rn-team-tools' },
         { key: 'name', label: 'Plugin name', placeholder: 'rn-team-tools' },

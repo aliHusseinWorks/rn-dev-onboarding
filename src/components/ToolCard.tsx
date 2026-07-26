@@ -54,7 +54,7 @@ export function ToolCard({ tool, category, platform, index, installed, onToggle,
           </h3>
           <p className="mt-0.5 text-[13px] leading-snug text-fg-muted">{tool.description}</p>
         </div>
-        {available && (
+        {available && category.checkable !== false && (
           <button
             onClick={onToggle}
             aria-pressed={installed}
