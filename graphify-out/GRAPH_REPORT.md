@@ -5,12 +5,12 @@
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 415 nodes · 651 edges · 49 communities (45 shown, 4 thin omitted)
+- 415 nodes · 559 edges · 47 communities (40 shown, 7 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 8 edges (avg confidence: 0.76)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `8b63ae9a`
+- Built from commit: `cef0a636`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -53,33 +53,30 @@
 - 0015 — The knowledge graph ships in the repo
 - 0010 — The herdr launcher is a hosted script run in one paste, and modal fields gain an image kind
 - 0013 — The detect scan applies its whole result; Undo replaces the opt-in uncheck
-- 0014 — Per-project sections carry no checkmarks
-- 0012 — Plugins are detected in ~/.claude/settings.json
-- 0016 — `Category.inScript` is deleted, not wired up
 
 ## God Nodes (most connected - your core abstractions)
-1. `PlatformId` - 21 edges
-2. `compilerOptions` - 18 edges
-3. `react` - 16 edges
-4. `App()` - 15 edges
-5. `compilerOptions` - 15 edges
-6. `isAvailable()` - 11 edges
-7. `PLATFORM_INFO` - 11 edges
-8. `ToolCard()` - 8 edges
-9. `emitTool()` - 8 edges
-10. `toolsInCategory()` - 8 edges
+1. `compilerOptions` - 18 edges
+2. `react` - 16 edges
+3. `compilerOptions` - 15 edges
+4. `App()` - 12 edges
+5. `isAvailable()` - 11 edges
+6. `emitTool()` - 8 edges
+7. `toolsInCategory()` - 8 edges
+8. `ToolCard()` - 7 edges
+9. `generateAiSetup()` - 7 edges
+10. `resolveAction()` - 7 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Pre-Paint Theme Script` --semantically_similar_to--> `localStorage State Persistence`  [INFERRED] [semantically similar]
   index.html → README.md
 - `RN Dev Setup Launcher` --conceptually_related_to--> `index.html Entry Page`  [INFERRED]
   README.md → index.html
-- `Props` --references--> `PlatformId`  [EXTRACTED]
-  src/components/DetectModal.tsx → src/lib/platform.ts
-- `Props` --references--> `PlatformId`  [EXTRACTED]
-  src/components/PlatformBanner.tsx → src/lib/platform.ts
 - `App()` --calls--> `isAvailable()`  [EXTRACTED]
   src/App.tsx → src/lib/commands.ts
+- `App()` --calls--> `matchesQuery()`  [EXTRACTED]
+  src/App.tsx → src/lib/commands.ts
+- `Props` --references--> `Category`  [EXTRACTED]
+  src/components/CategorySection.tsx → src/lib/tools.ts
 
 ## Import Cycles
 - None detected.
@@ -87,11 +84,11 @@
 ## Hyperedges (group relationships)
 - **Data-Driven Tool Authoring Pattern** — readme_data_driven_tool_catalog, readme_action_helpers, readme_platform_ids, src_lib_tools, src_lib_icons [EXTRACTED 1.00]
 
-## Communities (49 total, 4 thin omitted)
+## Communities (47 total, 7 thin omitted)
 
 ### Community 0 - "App Shell & Core UI"
-Cohesion: 0.50
-Nodes (3): 2026-07-24, Added, Changelog
+Cohesion: 0.12
+Nodes (16): lucide-react, dependencies, lucide-react, react, react-dom, name, private, scripts (+8 more)
 
 ### Community 1 - "App TypeScript Config"
 Cohesion: 0.08
@@ -103,23 +100,23 @@ Nodes (5): KVNamespace, onRequest(), PagesContext, readCapped(), respond()
 
 ### Community 3 - "Node Build Config"
 Cohesion: 0.10
-Nodes (20): functions/**/*.ts, node, vite.config.ts, compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib, module (+12 more)
+Nodes (20): ES2023, functions/**/*.ts, node, vite.config.ts, compilerOptions, allowImportingTsExtensions, erasableSyntaxOnly, lib (+12 more)
 
 ### Community 4 - "Tool Cards & Setup Scripts"
-Cohesion: 0.09
-Nodes (39): Action Helpers (cmd/link/mac/win), Platform IDs (mac-arm, mac-intel, win-x64, win-arm, linux), AiSetupModal(), Props, CategorySection(), Props, CommandBlock(), Props (+31 more)
+Cohesion: 0.11
+Nodes (29): Action Helpers (cmd/link/mac/win), Data-Driven Tool Catalog, Platform IDs (mac-arm, mac-intel, win-x64, win-arm, linux), CategorySection(), Props, Props, ToolCard(), AiSetupGroup (+21 more)
 
 ### Community 5 - "Dev Dependencies"
-Cohesion: 0.06
-Nodes (35): lucide-react, oxlint, dependencies, lucide-react, react, react-dom, devDependencies, oxlint (+27 more)
+Cohesion: 0.11
+Nodes (19): oxlint, devDependencies, oxlint, tailwindcss, @tailwindcss/vite, @types/node, @types/react, @types/react-dom (+11 more)
 
 ### Community 6 - "Package Manifest"
 Cohesion: 0.33
 Nodes (5): 0001 — Detect installed tools via a pasted scan script + relay, Consequences, Context, Decision, Rejected
 
 ### Community 7 - "AI Setup Modal"
-Cohesion: 0.40
-Nodes (5): Added, Changed, Fixed, Removed, Unreleased
+Cohesion: 0.25
+Nodes (8): 2026-07-24, Added, Added, Changed, Changelog, Fixed, Removed, Unreleased
 
 ### Community 8 - "CI & Deployment"
 Cohesion: 0.25
@@ -130,8 +127,8 @@ Cohesion: 0.22
 Nodes (8): plugins, rules, react/only-export-components, react/rules-of-hooks, $schema, oxc, typescript, warn
 
 ### Community 10 - "Copy & Tooltip Primitives"
-Cohesion: 0.08
-Nodes (36): react, App(), readSavedPlatform(), Modal(), Props, PlatformBanner(), Props, ProgressBar() (+28 more)
+Cohesion: 0.10
+Nodes (24): AiSetupModal(), Props, CommandBlock(), Props, Modal(), Props, Props, Props (+16 more)
 
 ### Community 11 - "Entry Page & Persistence"
 Cohesion: 0.39
@@ -142,8 +139,8 @@ Cohesion: 1.00
 Nodes (3): RN Dev Onboarding Launchpad Branding, Favicon (Terminal Prompt Icon), Terminal Prompt Motif (chevron + cursor line)
 
 ### Community 16 - "detectScript.ts"
-Cohesion: 0.15
-Nodes (25): Applied, DetectModal(), Props, checksFor(), describeCheck(), describeChecks(), DETECT_SPECS, DetectCheck (+17 more)
+Cohesion: 0.14
+Nodes (24): Applied, DetectModal(), Props, checksFor(), describeCheck(), describeChecks(), DETECT_SPECS, DetectCheck (+16 more)
 
 ### Community 17 - "CLAUDE.md"
 Cohesion: 0.29
@@ -166,8 +163,8 @@ Cohesion: 0.33
 Nodes (5): 0008 — All project docs live under docs/ (README stays at root), Consequences, Context, Decision, Rejected
 
 ### Community 22 - "TODO.md"
-Cohesion: 0.25
-Nodes (6): 0005 — Deploys run on Cloudflare's git integration, not local CLI or CI, Consequences, Context, Decision, Rejected, TODO
+Cohesion: 0.33
+Nodes (5): 0005 — Deploys run on Cloudflare's git integration, not local CLI or CI, Consequences, Context, Decision, Rejected
 
 ### Community 25 - "Creating a component in this repo"
 Cohesion: 0.40
@@ -178,8 +175,8 @@ Cohesion: 0.40
 Nodes (4): 0003 — Pairing codes are single-use both ways, via a tombstone, Consequences, Context, Decision
 
 ### Community 27 - "0005 — Deploys run on Cloudflare's git integration, not local CLI or CI"
-Cohesion: 0.50
-Nodes (5): index.html Entry Page, Pre-Paint Theme Script, Data-Driven Tool Catalog, localStorage State Persistence, RN Dev Setup Launcher
+Cohesion: 0.67
+Nodes (4): index.html Entry Page, Pre-Paint Theme Script, localStorage State Persistence, RN Dev Setup Launcher
 
 ### Community 28 - "0006 — Standard agent roster gains architect and security-reviewer"
 Cohesion: 0.40
@@ -194,12 +191,8 @@ Cohesion: 0.40
 Nodes (4): 0009 — A tool change must ripple to everything that consumes it, Consequences, Context, Decision
 
 ### Community 31 - "iconImage.ts"
-Cohesion: 0.33
-Nodes (9): ImageDropField(), Props, fileToIconBase64(), ICO_SIZES, IconFormat, loadImage(), packIco(), squarePng() (+1 more)
-
-### Community 32 - "0011 — Ponytail is the one agent-discipline plugin we ship"
-Cohesion: 0.40
-Nodes (4): 0011 — Ponytail is the one agent-discipline plugin we ship, Consequences, Context, Decision
+Cohesion: 0.11
+Nodes (22): react, App(), readSavedPlatform(), ImageDropField(), Props, Props, isCheckable(), fileToIconBase64() (+14 more)
 
 ### Community 33 - "settings.json"
 Cohesion: 0.50
@@ -213,49 +206,29 @@ Nodes (3): Adding an API call in this repo, Hard rules, The pattern, from `versi
 Cohesion: 0.50
 Nodes (3): Adding a "screen" in this repo, The modal pattern (most common), The section pattern
 
-### Community 43 - "0015 — The knowledge graph ships in the repo"
-Cohesion: 0.40
-Nodes (4): 0015 — The knowledge graph ships in the repo, Consequences, Context, Decision
-
 ### Community 44 - "0010 — The herdr launcher is a hosted script run in one paste, and modal fields gain an image kind"
-Cohesion: 0.33
-Nodes (5): 0010 — The herdr launcher is a hosted script run in one paste, and modal fields gain an image kind, Consequences, Context, Decision, Rejected
-
-### Community 45 - "0013 — The detect scan applies its whole result; Undo replaces the opt-in uncheck"
-Cohesion: 0.33
-Nodes (5): 0013 — The detect scan applies its whole result; Undo replaces the opt-in uncheck, Consequences, Context, Decision, Rejected
-
-### Community 46 - "0014 — Per-project sections carry no checkmarks"
-Cohesion: 0.33
-Nodes (5): 0014 — Per-project sections carry no checkmarks, Consequences, Context, Decision, Rejected
-
-### Community 47 - "0012 — Plugins are detected in ~/.claude/settings.json"
-Cohesion: 0.40
-Nodes (4): 0012 — Plugins are detected in ~/.claude/settings.json, Consequences, Context, Decision
-
-### Community 48 - "0016 — `Category.inScript` is deleted, not wired up"
-Cohesion: 0.40
-Nodes (4): 0016 — `Category.inScript` is deleted, not wired up, Consequences, Context, Decision
+Cohesion: 0.05
+Nodes (32): 0010 — The herdr launcher is a hosted script run in one paste, and modal fields gain an image kind, Consequences, Context, Decision, Rejected, 0011 — Ponytail is the one agent-discipline plugin we ship, Consequences, Context (+24 more)
 
 ## Knowledge Gaps
-- **175 isolated node(s):** `$schema`, `PreToolUse`, `$schema`, `typescript`, `oxc` (+170 more)
+- **178 isolated node(s):** `$schema`, `PreToolUse`, `What this project actually is`, `Non-negotiable rules`, `Docs contract — read before / update after` (+173 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **4 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `Copy & Tooltip Primitives` to `Tool Cards & Setup Scripts`, `Lint Configuration`, `Entry Page & Persistence`, `detectScript.ts`, `iconImage.ts`?**
-  _High betweenness centrality (0.027) - this node is a cross-community bridge._
-- **Why does `plugins` connect `Lint Configuration` to `Copy & Tooltip Primitives`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **Why does `PlatformId` connect `Tool Cards & Setup Scripts` to `detectScript.ts`, `Copy & Tooltip Primitives`, `iconImage.ts`?**
-  _High betweenness centrality (0.015) - this node is a cross-community bridge._
-- **What connects `$schema`, `PreToolUse`, `$schema` to the rest of the system?**
-  _175 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Why does `react` connect `iconImage.ts` to `detectScript.ts`, `Lint Configuration`, `Copy & Tooltip Primitives`, `Entry Page & Persistence`?**
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Why does `plugins` connect `Lint Configuration` to `iconImage.ts`?**
+  _High betweenness centrality (0.014) - this node is a cross-community bridge._
+- **Why does `TOOLS` connect `iconImage.ts` to `CI & Deployment`, `Copy & Tooltip Primitives`, `Tool Cards & Setup Scripts`?**
+  _High betweenness centrality (0.006) - this node is a cross-community bridge._
+- **What connects `$schema`, `PreToolUse`, `What this project actually is` to the rest of the system?**
+  _178 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `App Shell & Core UI` be split into smaller, more focused modules?**
+  _Cohesion score 0.11764705882352941 - nodes in this community are weakly interconnected._
 - **Should `App TypeScript Config` be split into smaller, more focused modules?**
   _Cohesion score 0.08333333333333333 - nodes in this community are weakly interconnected._
 - **Should `Node Build Config` be split into smaller, more focused modules?**
   _Cohesion score 0.09523809523809523 - nodes in this community are weakly interconnected._
-- **Should `Tool Cards & Setup Scripts` be split into smaller, more focused modules?**
-  _Cohesion score 0.09084556254367575 - nodes in this community are weakly interconnected._
