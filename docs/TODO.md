@@ -36,6 +36,12 @@ this file exists only because this repo has no board.
       `flex-wrap` — but the bar is sticky now, so it costs ~18% of a phone
       viewport permanently). A `min-w` on the search field would push it to its
       own full-width row instead.
+- [ ] The statusline's `pr.number` / `pr.url` / `pr.review_state` fields look
+      GitHub-only — the docs example is a github.com URL mirroring the `gh` PR
+      badge — so a PR-aware profile is probably dead for this team on Bitbucket.
+      Left out of [0028](decisions/0028-statusline-card-via-slash-command.md)
+      rather than shipped untested; worth 30 seconds to confirm on a branch with
+      an open Bitbucket PR, and worth a fourth profile if it does populate.
 - [ ] Verify Zoho Cliq's Windows install dir (`detect.ts` guesses
       `$env:LOCALAPPDATA\Programs\zoho-cliq`) on a machine that has it.
 - [x] Teams desktop showed no version badge because the `microsoft-teams` cask

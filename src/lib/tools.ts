@@ -31,6 +31,10 @@ export interface ModalStep {
   // so a step can offer a different route once something is filled in.
   whenFieldSet?: string
   whenFieldUnset?: string
+  // A sample of what the command produces, rendered under it. For steps whose
+  // output is the point — pick-one alternatives you can only choose between by
+  // seeing them. Newlines render as separate lines.
+  preview?: string
 }
 
 // A fill-in input shown at the top of the modal. Its value replaces every
@@ -93,7 +97,7 @@ export const CATEGORIES: Category[] = [
   { id: 'apps', title: 'Desktop Apps', description: 'Editors, IDEs, debuggers, and team chat.', accent: '#a78bfa', order: 2 },
   { id: 'ai', title: 'AI Tools & Claude Code', description: 'Agentic CLIs, prerequisites, and Claude Code plugins.', accent: '#fbbf24', order: 3 },
   { id: 'mcp', title: 'MCP Servers', description: 'Connect Claude Code to your tools with `claude mcp add`.', accent: '#2dd4bf', order: 4 },
-  { id: 'project', title: 'Project Setup', description: 'Scaffold a Claude workspace in a repo.', accent: '#f472b6', order: 5, checkable: false },
+  { id: 'project', title: 'Project Setup', description: 'Scaffold a Claude workspace in a repo, and tune Claude Code itself.', accent: '#f472b6', order: 5, checkable: false },
   { id: 'rn', title: 'React Native Setup', description: 'Create a project and verify the toolchain.', accent: '#61dafb', order: 6, checkable: false },
 ]
 
@@ -794,6 +798,21 @@ export const TOOLS: Tool[] = [
     },
     secondary: { ...mac(cmd('brew install herdr')) },
   },
+  {
+    id: 'uv',
+    category: 'ai',
+    name: 'uv',
+    description: 'Python tool manager — brings its own Python.',
+    icon: 'feather',
+    order: 3,
+    docsUrl: 'https://docs.astral.sh/uv/',
+    version: { github: 'astral-sh/uv' },
+    actions: {
+      ...mac(cmd('curl -LsSf https://astral.sh/uv/install.sh | sh')),
+      linux: cmd('curl -LsSf https://astral.sh/uv/install.sh | sh'),
+      ...win(cmd('winget install --id astral-sh.uv -e --accept-source-agreements --accept-package-agreements')),
+    },
+  },
 
   {
     id: 'superpowers',
@@ -1044,12 +1063,45 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    id: 'statusline',
+    category: 'project',
+    name: 'Claude Code statusline',
+    description: 'Model, context and spend, always visible.',
+    icon: 'gauge',
+    order: 2,
+    docsUrl: 'https://code.claude.com/docs/en/statusline',
+    note: 'Two things no profile can show. Permission mode: the "auto mode on" line is Claude Code\'s own footer, drawn below the statusline and not yours to replace — so there is no "am I in bypass mode" bar. Rate limits: absent until the session\'s first API response, so the recommended bar is partly blank on the first prompt, and stays blank on API billing rather than a Pro or Max plan.',
+    modal: {
+      intro: 'Pick ONE and send it as a prompt in Claude Code — it writes the script and wires it up for you. Send another later to replace it.',
+      steps: [
+        {
+          command:
+            '/statusline two lines. First: repo name and git branch, model display name, effort level, context used percentage. Second: 5-hour and weekly rate limit percentages each with time until reset, session cost in USD, lines added and removed, session duration. Add a "fast" flag on line one only when fast mode is on. Do not print the context window size separately — the model display name already carries it.',
+          note: 'Recommended — the bar we run. The 5-hour and weekly numbers need a Pro or Max plan.',
+          preview:
+            'rn-dev-onboarding:main │ Opus 5 (1M context) │ effort max │ ctx 30%\nsession 9% (4h31m) │ week 15% (6d13h) │ $16.57 │ +237 -25 │ 2h45m',
+        },
+        {
+          command:
+            '/statusline one line: repo name and git branch, model display name, effort level, context used percentage, lines added and removed. Cache the git lookup per session.',
+          note: 'One line. Keeps where you are and what you\'ve changed; loses the usage limits, cost and session clock.',
+          preview: 'rn-dev-onboarding:main │ Opus 5 │ effort max │ ctx 30% │ +237 -25',
+        },
+        {
+          command: '/statusline one line, no git: model display name, effort level, context used percentage.',
+          note: 'One line, and the quickest to draw — no git lookup, so no branch either.',
+          preview: 'Opus 5 │ effort max │ ctx 30%',
+        },
+      ],
+    },
+  },
+  {
     id: 'run-docs',
     category: 'project',
     name: 'Run-the-app docs',
     description: 'Generate docs/RUNNING.md: clone → deps → emulator or device.',
     icon: 'rocket',
-    order: 2,
+    order: 3,
     modal: {
       intro: 'Paste this into Claude Code inside a cloned repo. It reads the repo and writes docs/RUNNING.md with the exact steps to run the app — dependencies, emulator/simulator, and physical devices.',
       prereq: 'Repo cloned.',
@@ -1063,7 +1115,7 @@ export const TOOLS: Tool[] = [
     name: 'Team plugin',
     description: 'Shared agents, skills & hooks — install it, or author it once.',
     icon: 'package-2',
-    order: 3,
+    order: 4,
     docsUrl: 'https://docs.claude.com/en/docs/claude-code/overview',
     modal: {
       intro: 'Our shared RN tooling. Every dev: run steps 1–2 inside Claude Code (each command as its own prompt). Plugin author only: steps 3–5 scaffold and publish the plugin in the first place.',

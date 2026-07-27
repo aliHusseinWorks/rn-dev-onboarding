@@ -337,6 +337,11 @@ export function App() {
                     filename={step.filename}
                   />
                 )}
+                {step.preview && (
+                  <pre className="thin-scroll overflow-x-auto rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-[11px] leading-relaxed text-fg-muted">
+                    {step.preview}
+                  </pre>
+                )}
               </div>
             ))}
             {modalTool.modal.prompt && (

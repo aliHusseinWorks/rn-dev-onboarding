@@ -142,6 +142,7 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
     linuxPaths: ['~/.local/bin/claude'],
   },
   herdr: { bins: ['herdr'] },
+  uv: { bins: ['uv'] },
   fastlane: { bins: ['fastlane'] },
   superpowers: { claudePlugin: 'superpowers@' },
   ponytail: { claudePlugin: 'ponytail@' },

@@ -132,6 +132,49 @@ point them at it — or to ask that one question at its own step in the end bloc
 if it truly can't be obtained earlier. No new data, and it covers every future
 field rather than the two known cases.
 
+### A pinned version means that version, and the agent resolves it silently
+
+Rule 1's "if present and healthy, report it and skip" was version-blind, so a
+machine with JDK 20 would have had the JDK skipped — `java -version` succeeds,
+"healthy" reads as satisfied, and React Native's hard requirement on 17 goes
+uninstalled until Gradle fails on it. The `Context:` line the card contributes
+("needs JDK 17 specifically, not the newest Java") was the only counterweight,
+and it arrives after the rule that overrules it. Rule 8's `java -version` was
+equally blind, so the final verification would not have caught the miss either.
+
+This is [0022](0022-jdk-detected-by-pinned-paths-not-javac.md) all over again in
+the other derived surface: the detect scan's version-blind `javac` check was
+fixed two days earlier, and the AI-setup prompt — generated from the same
+`tools.ts` — kept it. Precisely the ripple the CLAUDE.md tool-change checklist
+names.
+
+Rule 1b now states that where a tool names a version, "already installed" means
+that version, and the agent installs the pinned one regardless of what else is
+present. Rule 8 checks `JAVA_HOME` resolves to the pinned JDK rather than to any
+JDK.
+
+Two options were weighed for the conflict itself:
+
+- **Warn and skip** — tell the user they have a newer JDK and hand them the
+  steps. Rejected: it returns an unfinished machine from a run whose entire
+  purpose is that you can walk away from it, and it ignores that the user
+  selected the JDK card. Coexisting JDKs are safe, so there is nothing to protect
+  them from.
+- **Resolve, ask nothing, record the one consequential change.** Chosen. The
+  install is inert — parallel JDKs live in separate directories. Repointing
+  `JAVA_HOME` is not inert: it is machine-wide, and whether it matters depends on
+  projects this app cannot see. So the old and new values go into the closing
+  summary that rule 9 already prints. That is a row in a report, not an
+  interruption; the run stays unattended end to end. Omitting it would trade zero
+  cost for someone eventually losing an afternoon to a compiler that changed
+  under them.
+
+Worth noting Gradle reads `JAVA_HOME` rather than PATH, so a newer Java sitting
+earlier on PATH is cosmetic — `java -version` will disagree with what actually
+builds. Android Studio is the third opinion: it uses its own Gradle JDK setting
+and ignores `JAVA_HOME` entirely, which is left alone here because it is per-IDE
+configuration rather than machine setup.
+
 ### The modal states the shape of the run, counted not written
 
 Reshaping the run is worth nothing if the user can't see it before committing, so

@@ -119,15 +119,17 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
             </div>
           ))}
         {!nothingLeft && (
-          <p className="max-w-lg rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-xs leading-relaxed text-fg-muted">
-            <span className="font-mono text-fg">--dangerously-skip-permissions</span> is what makes it unattended — Claude
-            Code stops asking before every command, and does mean it runs the whole list without checking with you. Drop
-            the flag to approve each step instead. Either way your OS still asks for itself —{' '}
-            {PLATFORM_INFO[platform].os === 'win'
-              ? 'UAC prompts sit on a dimmed screen and auto-cancel after ~2 minutes'
-              : 'sudo asks for your password'}{' '}
-            — which is what the second line above is for.
-          </p>
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+            <p className="max-w-lg text-xs leading-relaxed text-fg-muted">
+              <span className="font-mono text-fg">--dangerously-skip-permissions</span> is what makes it unattended —
+              Claude Code stops asking before every command, and does mean it runs the whole list without checking with
+              you. Drop the flag to approve each step instead. Either way your OS still asks for itself —{' '}
+              {PLATFORM_INFO[platform].os === 'win'
+                ? 'UAC prompts sit on a dimmed screen and auto-cancel after ~2 minutes'
+                : 'sudo asks for your password'}{' '}
+              — which is what the second line above is for.
+            </p>
+          </div>
         )}
 
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 px-3 py-3">
