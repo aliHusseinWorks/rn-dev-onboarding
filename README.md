@@ -57,7 +57,7 @@ Helpers at the top of the file keep entries terse:
 **Ripple checklist** — a tool change isn't done until everything consuming it is updated:
 1. `DETECT_SPECS` in `src/lib/detect.ts` — how the detect scan finds it (bin on PATH, install dir, Store package, `~/.claude.json` needle for MCP servers, `~/.claude/settings.json` needle for plugins). No spec = silently left out of the scan.
 2. The AI-setup prompt derives from `tools.ts` automatically — but eyeball it if the tool has unusual steps (manual/`docsOnly` flags, fields).
-3. One line in `docs/CHANGELOG.md`.
+3. One line in `docs/CHANGELOG.md`, under today's `## YYYY-MM-DD` heading.
 
 Add a **category** by appending to `CATEGORIES` (id, title, description, `accent` hex, order). The accent colors the category's icons and rail. Set `checkable: false` if its cards are per-project actions rather than machine state — they then carry no checkmark and stay out of the progress count, the AI setup and the detect scan.
 

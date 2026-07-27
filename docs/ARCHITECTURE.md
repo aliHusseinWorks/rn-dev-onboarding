@@ -59,6 +59,7 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
 | State | `useState` + `src/lib/useLocalStorage.ts` (`rn-onboard:` key prefix) | Redux/Zustand/context libs |
 | Styling | semantic token classes from `index.css` (`bg-surface`, `text-fg-muted`, `text-warning`, …) | hardcoded hex (sole exception: data-driven `category.accent` inline style) |
 | Navigation/routing | none — conditionally-rendered modals in `App.tsx` (`{open && <SomeModal …/>}`) | routers |
+| Responsive layout inside a modal or card | container queries — `@container` is on `Modal`'s content box, so use `@md:`/`@2xl:`/`@4xl:` variants ([0025](decisions/0025-modal-width-follows-content.md)) | `sm:`/`lg:` viewport breakpoints — they size off the window, not the panel |
 | Network calls | bare `fetch`, silent fallback (`catch { return null }`) like `versions.ts` | axios/fetch wrappers |
 | Icons | `lucide-react`, numeric `size` prop 12–22 | other icon sets |
 | Copy-to-clipboard, command display | `CommandBlock` + `useCopy` | rebuilding either |

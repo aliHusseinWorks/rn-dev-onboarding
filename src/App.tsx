@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronsDownUp, ChevronsUpDown, ExternalLink, ScanSearch, Sparkles, Terminal } from 'lucide-react'
 import { AiSetupModal } from './components/AiSetupModal'
+import { CategoryChips } from './components/CategoryChips'
+import { CategoryRail } from './components/CategoryRail'
 import { CategorySection } from './components/CategorySection'
 import { CommandBlock } from './components/CommandBlock'
 import { DetectModal } from './components/DetectModal'
@@ -38,6 +40,10 @@ export function App() {
   // Section fold state, keyed by category id. Missing key = open.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [light, setLight] = useState(() => document.documentElement.classList.contains('light'))
+  // The header's progress bar scrolls away; the rail and the toolbar's hairline
+  // take over from where it stops being visible, so the count is never missing.
+  const headerProgressRef = useRef<HTMLDivElement>(null)
+  const [progressGone, setProgressGone] = useState(false)
 
   // Async UA-CH refinement (catches Windows ARM). Always updates what was
   // detected; only moves the selection when the user hasn't overridden it.
@@ -69,8 +75,17 @@ export function App() {
       return next
     })
 
+  useEffect(() => {
+    const header = headerProgressRef.current
+    if (!header) return
+    const observer = new IntersectionObserver(([entry]) => setProgressGone(!entry.isIntersecting))
+    observer.observe(header)
+    return () => observer.disconnect()
+  }, [])
+
   const availableTools = TOOLS.filter((t) => isAvailable(t, platform) && isCheckable(t))
   const done = availableTools.filter((t) => installed[t.id]).length
+  const pct = availableTools.length > 0 ? Math.round((done / availableTools.length) * 100) : 0
   const categoryFor = (id: string) => CATEGORIES.find((c) => c.id === id)
   const hasResults = TOOLS.some((t) => matchesQuery(t, categoryFor(t.category), query))
 
@@ -80,7 +95,9 @@ export function App() {
   }
 
   const modalTool = TOOLS.find((t) => t.id === modalToolId)
-  const sortedCategories = [...CATEGORIES].sort((a, b) => a.order - b.order)
+  // Stable identity: the rail keys its observer effect off this array, and a
+  // fresh one per render would rebuild the observer on every checkbox tick.
+  const sortedCategories = useMemo(() => [...CATEGORIES].sort((a, b) => a.order - b.order), [])
 
   // Steps for this platform, with the per-platform command and filename picked.
   const platformSteps = (modalTool?.modal?.steps ?? []).flatMap((step) => {
@@ -114,7 +131,7 @@ export function App() {
   return (
     <div className="min-h-svh">
       <header className="ambient border-b border-border">
-        <div className="mx-auto max-w-6xl px-4 pb-6 pt-8 sm:px-6">
+        <div className="px-4 pb-6 pt-8 sm:px-6 xl:px-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 text-accent">
@@ -130,84 +147,112 @@ export function App() {
 
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <PlatformBanner platform={platform} detected={detected} onChange={setPlatform} />
-            <div className="flex items-center rounded-xl border border-border bg-surface/70 px-4 py-3">
+            <div ref={headerProgressRef} className="flex items-center rounded-xl border border-border bg-surface/70 px-4 py-3">
               <div className="w-full">
                 <ProgressBar done={done} total={availableTools.length} />
               </div>
             </div>
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <SearchBar value={query} onChange={setQuery} />
-            <Tooltip
-              label="Two pastes: install Claude Code, then hand it a prompt that installs and verifies everything else for you."
-              side="bottom"
-              align="end"
-              className="shrink-0"
-            >
-              <button
-                onClick={() => setAiSetupOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-accent-contrast transition-colors hover:bg-accent-strong cursor-pointer"
-              >
-                <Sparkles size={16} />
-                <span className="hidden sm:inline">Full AI setup</span>
-                <span className="sm:hidden">AI setup</span>
-              </button>
-            </Tooltip>
-            <Tooltip
-              label="One paste in your terminal: a readable script checks which tools are already installed and this page ticks them off by itself."
-              side="bottom"
-              align="end"
-              className="shrink-0"
-            >
-              <button
-                onClick={() => setDetectOpen(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
-              >
-                <ScanSearch size={16} />
-                <span className="hidden sm:inline">Detect installed</span>
-                <span className="sm:hidden">Detect</span>
-              </button>
-            </Tooltip>
-            <Tooltip
-              label={allCollapsed ? 'Open every category.' : 'Fold every category to just its header.'}
-              side="bottom"
-              align="end"
-              className="shrink-0"
-            >
-              <button
-                onClick={toggleAllSections}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
-              >
-                {allCollapsed ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
-                <span className="hidden sm:inline">{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
-              </button>
-            </Tooltip>
-          </div>
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 sm:px-6">
-        {sortedCategories.map((category) => (
-          <CategorySection
-            key={category.id}
-            category={category}
-            platform={platform}
-            installed={installed}
-            query={query}
-            open={!collapsed[category.id]}
-            onToggleOpen={() => setCollapsed((prev) => ({ ...prev, [category.id]: !prev[category.id] }))}
-            onToggle={toggleInstalled}
-            onSetMany={setInstalledMany}
-            onOpenModal={openModal}
+      <div className="sticky top-0 z-20 border-b border-border bg-bg/80 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-6 xl:px-8">
+          <SearchBar value={query} onChange={setQuery} />
+          <Tooltip
+            label="Two pastes: install Claude Code, then hand it a prompt that installs and verifies everything else for you."
+            side="bottom"
+            align="end"
+            className="shrink-0"
+          >
+            <button
+              onClick={() => setAiSetupOpen(true)}
+              className="ai-cta relative inline-flex items-center gap-2 rounded-lg border border-transparent bg-ai px-3 py-2 text-sm font-medium text-ai-contrast shadow-ai transition-colors hover:bg-ai-strong cursor-pointer"
+            >
+              <Sparkles size={16} />
+              <span className="hidden sm:inline">Full AI setup</span>
+              <span className="sm:hidden">AI setup</span>
+            </button>
+          </Tooltip>
+          <Tooltip
+            label="One paste in your terminal: a readable script checks which tools are already installed and this page ticks them off by itself."
+            side="bottom"
+            align="end"
+            className="shrink-0"
+          >
+            <button
+              onClick={() => setDetectOpen(true)}
+              className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-medium text-fg transition-colors hover:border-accent/60 hover:bg-accent/15 cursor-pointer"
+            >
+              <ScanSearch size={16} />
+              <span className="hidden sm:inline">Detect installed</span>
+              <span className="sm:hidden">Detect</span>
+            </button>
+          </Tooltip>
+          <Tooltip
+            label={allCollapsed ? 'Open every category.' : 'Fold every category to just its header.'}
+            side="bottom"
+            align="end"
+            className="shrink-0"
+          >
+            <button
+              onClick={toggleAllSections}
+              aria-label={allCollapsed ? 'Expand all sections' : 'Collapse all sections'}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
+            >
+              {allCollapsed ? <ChevronsUpDown size={16} /> : <ChevronsDownUp size={16} />}
+              <span className="hidden sm:inline">{allCollapsed ? 'Expand all' : 'Collapse all'}</span>
+            </button>
+          </Tooltip>
+        </div>
+        <CategoryChips categories={sortedCategories} platform={platform} installed={installed} />
+        {/* Below xl there's no rail to hold the count, so the bar's own bottom
+            edge becomes the progress. It sits on the border, costing no height. */}
+        <div
+          aria-hidden
+          className={`absolute -bottom-px left-0 right-0 h-0.5 bg-muted transition-opacity duration-300 xl:hidden ${
+            progressGone ? 'opacity-100' : 'opacity-0'
+          }`}
+        >
+          <div
+            className="h-full bg-accent transition-[width] duration-500 ease-out"
+            style={{ width: progressGone ? `${pct}%` : '0%' }}
           />
-        ))}
+        </div>
+      </div>
 
-        {!hasResults && <p className="py-12 text-center text-sm text-fg-subtle">No tools match “{query}”.</p>}
+      <main className="flex gap-8 px-4 py-8 sm:px-6 xl:px-8">
+        <CategoryRail
+          categories={sortedCategories}
+          platform={platform}
+          installed={installed}
+          query={query}
+          done={done}
+          total={availableTools.length}
+          showProgress={progressGone}
+        />
+        <div className="flex min-w-0 flex-1 flex-col gap-8">
+          {sortedCategories.map((category) => (
+            <CategorySection
+              key={category.id}
+              category={category}
+              platform={platform}
+              installed={installed}
+              query={query}
+              open={!collapsed[category.id]}
+              onToggleOpen={() => setCollapsed((prev) => ({ ...prev, [category.id]: !prev[category.id] }))}
+              onToggle={toggleInstalled}
+              onSetMany={setInstalledMany}
+              onOpenModal={openModal}
+            />
+          ))}
+
+          {!hasResults && <p className="py-12 text-center text-sm text-fg-subtle">No tools match “{query}”.</p>}
+        </div>
       </main>
 
       <footer className="border-t border-border">
-        <div className="mx-auto max-w-6xl px-4 py-6 text-xs text-fg-subtle sm:px-6">
+        <div className="px-4 py-6 text-xs text-fg-subtle sm:px-6 xl:px-8">
           Progress is saved in your browser. Commands install the latest version for{' '}
           <span className="font-mono text-fg-muted">{PLATFORM_INFO[platform].label}</span> unless a version is pinned.
         </div>

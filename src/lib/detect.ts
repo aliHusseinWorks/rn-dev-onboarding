@@ -49,11 +49,24 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   yarn: { bins: ['yarn'] },
   watchman: { bins: ['watchman'] },
   cocoapods: { bins: ['pod'] },
+  // Deliberately NOT `bins: ['javac']`: checks are any-of, and javac says
+  // nothing about which Java it is, so a machine with only JDK 21 ticked this
+  // card green and then failed its first Gradle build on the exact mismatch the
+  // card warns about. Only version-pinned paths can answer "is 17 here", so a
+  // 17 installed somewhere unlisted (Corretto, SDKMAN, jenv) reads as missing —
+  // the safe direction, since the fix is re-running an idempotent install.
   jdk: {
-    bins: ['javac'],
-    macPaths: ['/Library/Java/JavaVirtualMachines/zulu-17.jdk'],
-    winPaths: ['$env:ProgramFiles\\Microsoft\\jdk-17*'],
-    linuxPaths: ['/usr/lib/jvm/java-17-openjdk-amd64'],
+    macPaths: [
+      '/Library/Java/JavaVirtualMachines/zulu-17.jdk',
+      '/Library/Java/JavaVirtualMachines/temurin-17.jdk',
+      '/Library/Java/JavaVirtualMachines/microsoft-17.jdk',
+    ],
+    winPaths: [
+      '$env:ProgramFiles\\Microsoft\\jdk-17*',
+      '$env:ProgramFiles\\Eclipse Adoptium\\jdk-17*',
+      '$env:ProgramFiles\\Zulu\\zulu-17*',
+    ],
+    linuxPaths: ['/usr/lib/jvm/java-17-openjdk-amd64', '/usr/lib/jvm/java-17-openjdk-arm64', '/usr/lib/jvm/java-17-openjdk'],
   },
   'ssh-key': {
     macPaths: ['~/.ssh/id_ed25519.pub'],

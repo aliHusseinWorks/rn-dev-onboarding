@@ -5,9 +5,14 @@ interface Props {
   title: string
   onClose: () => void
   children: ReactNode
+  // For the two modals holding a code block or a tool grid: their content needs
+  // ~110 monospace columns and four grid columns, which 2xl can't give. Prose
+  // inside them caps itself at max-w-lg, so the extra width only reaches content
+  // that uses it. The per-tool modals are prose plus a field or two and stay 2xl.
+  wide?: boolean
 }
 
-export function Modal({ title, onClose, children }: Props) {
+export function Modal({ title, onClose, children, wide }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -36,7 +41,9 @@ export function Modal({ title, onClose, children }: Props) {
       <div
         ref={panelRef}
         tabIndex={-1}
-        className="card-in flex max-h-full w-full max-w-2xl flex-col rounded-2xl border border-border-strong bg-surface shadow-2xl outline-none"
+        className={`card-in flex max-h-full w-full flex-col rounded-2xl border border-border-strong bg-surface shadow-2xl outline-none ${
+          wide ? 'max-w-5xl' : 'max-w-2xl'
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
@@ -49,7 +56,8 @@ export function Modal({ title, onClose, children }: Props) {
             <X size={20} />
           </button>
         </div>
-        <div className="overflow-y-auto overflow-x-hidden px-5 py-5">{children}</div>
+        {/* @container so grids inside size against the panel, not the viewport. */}
+        <div className="@container overflow-y-auto overflow-x-hidden px-5 py-5">{children}</div>
       </div>
     </div>
   )

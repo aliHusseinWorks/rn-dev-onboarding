@@ -1,5 +1,6 @@
-import type { PlatformId } from './platform'
+import { PLATFORMS, type PlatformId } from './platform'
 import { CATEGORIES, TOOLS, type Category, type Tool, type ToolAction } from './tools'
+import type { VersionSource } from './versions'
 
 export const ARCH_SHORT: Record<PlatformId, string> = {
   'mac-arm': 'Apple Silicon',
@@ -11,6 +12,17 @@ export const ARCH_SHORT: Record<PlatformId, string> = {
 
 export function toolsInCategory(categoryId: string): Tool[] {
   return TOOLS.filter((t) => t.category === categoryId).sort((a, b) => a.order - b.order)
+}
+
+// Whole-category totals for the rail and the chip strip — deliberately not
+// query-filtered, so the numbers hold still while you search.
+export function categoryProgress(
+  categoryId: string,
+  platform: PlatformId,
+  installed: Record<string, boolean>,
+): { done: number; total: number } {
+  const tools = toolsInCategory(categoryId).filter((t) => isAvailable(t, platform))
+  return { done: tools.filter((t) => installed[t.id]).length, total: tools.length }
 }
 
 export function matchesQuery(tool: Tool, category: Category | undefined, query: string): boolean {
@@ -31,6 +43,18 @@ export function isCheckable(tool: Tool): boolean {
 
 export function resolveAction(tool: Tool, platform: PlatformId): ToolAction | undefined {
   return tool.actions?.[platform]
+}
+
+// A bare source applies to every platform; a per-platform map only to the one
+// picked, and resolves to nothing where that OS has no source worth trusting.
+// The two key sets are disjoint, so the presence of any platform key tells them
+// apart.
+export function resolveVersion(tool: Tool, platform: PlatformId): VersionSource | undefined {
+  const version = tool.version
+  if (!version) return undefined
+  return PLATFORMS.some((p) => p in version)
+    ? (version as Partial<Record<PlatformId, VersionSource>>)[platform]
+    : (version as VersionSource)
 }
 
 export function resolveSecondary(tool: Tool, platform: PlatformId): ToolAction | undefined {

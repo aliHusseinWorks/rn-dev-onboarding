@@ -92,14 +92,14 @@ export function DetectModal({ platform, installed, onApply, onClose }: Props) {
   }
 
   return (
-    <Modal title="Detect installed tools" onClose={onClose}>
+    <Modal title="Detect installed tools" onClose={onClose} wide>
       <div className="flex flex-col gap-4">
-        <p className="text-sm leading-relaxed text-fg-muted">
+        <p className="max-w-lg text-sm leading-relaxed text-fg-muted">
           Copy the script below into {isWindows ? 'PowerShell' : 'your terminal'} and run it — this page ticks off
           what it finds by itself, no refresh needed. It checks {scannable.length} tools: command-line tools, desktop
           apps in their standard folders, and your Claude Code setup (MCP servers and plugins).
         </p>
-        <p className="text-xs leading-relaxed text-fg-subtle">
+        <p className="max-w-lg text-xs leading-relaxed text-fg-subtle">
           The only data that leaves your machine: a one-time code, your platform id (
           <span className="font-mono">{platform}</span>), and the ids of tools found. The script is plain text — every
           check is one readable line.
@@ -146,7 +146,7 @@ export function DetectModal({ platform, installed, onApply, onClose }: Props) {
           multiline
         />
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex max-w-lg flex-col gap-1.5">
           <p className="text-xs text-fg-subtle">
             {session.status === 'off'
               ? `Then paste the ${RESULT_PREFIX} line the script prints:`

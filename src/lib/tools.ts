@@ -69,8 +69,11 @@ export interface Tool {
   actions?: Partial<Record<PlatformId, ToolAction>>
   secondary?: Partial<Record<PlatformId, ToolAction>>
   modal?: ToolModal
-  // Registry to look up the latest release from — shown as a live badge on the card.
-  version?: VersionSource
+  // Registry to look up the latest release from — shown as a live badge on the
+  // card. Per-platform only for the few whose builds genuinely differ by OS
+  // (Teams) or whose card covers a different tool per OS (Homebrew / winget);
+  // anything shipping one version everywhere takes a bare source.
+  version?: VersionSource | Partial<Record<PlatformId, VersionSource>>
 }
 
 export interface Category {
@@ -97,8 +100,8 @@ export const CATEGORIES: Category[] = [
 // action builders keep the config table terse
 const cmd = (value: string, label?: string): ToolAction => ({ type: 'command', value, label })
 const link = (value: string, label?: string): ToolAction => ({ type: 'link', value, label })
-const mac = (a: ToolAction): Partial<Record<PlatformId, ToolAction>> => ({ 'mac-arm': a, 'mac-intel': a })
-const win = (a: ToolAction): Partial<Record<PlatformId, ToolAction>> => ({ 'win-x64': a, 'win-arm': a })
+const mac = <T>(a: T): Partial<Record<PlatformId, T>> => ({ 'mac-arm': a, 'mac-intel': a })
+const win = <T>(a: T): Partial<Record<PlatformId, T>> => ({ 'win-x64': a, 'win-arm': a })
 
 const BREW_INSTALL = cmd('/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"')
 
@@ -138,6 +141,10 @@ export const TOOLS: Tool[] = [
     order: 1,
     docsUrl: 'https://brew.sh',
     note: 'macOS & Linux use Homebrew. Windows ships with winget; this command installs Chocolatey as an extra.',
+    // mac/linux only: this one card fronts three package managers, and on Windows
+    // the name says winget while the button installs Chocolatey — no single number
+    // describes that. Homebrew is unambiguous on the other two.
+    version: { ...mac({ github: 'Homebrew/brew' }), linux: { github: 'Homebrew/brew' } },
     actions: {
       ...mac(BREW_INSTALL),
       linux: BREW_INSTALL,
@@ -309,6 +316,7 @@ export const TOOLS: Tool[] = [
     icon: 'coffee',
     order: 10,
     docsUrl: 'https://www.azul.com/downloads/?version=java-17-lts&package=jdk',
+    version: { brew: 'zulu@17' },
     note: 'React Native needs JDK 17 specifically, not the newest Java. The Windows command also sets JAVA_HOME, which Gradle and `react-native doctor` require — restart your terminal after.',
     actions: {
       ...mac(cmd('brew install --cask zulu@17')),
@@ -391,6 +399,7 @@ export const TOOLS: Tool[] = [
     icon: 'code',
     order: 2,
     docsUrl: 'https://cursor.com',
+    version: { brew: 'cursor' },
     actions: {
       ...mac(link('https://cursor.com/downloads', 'Download Cursor')),
       linux: link('https://cursor.com/downloads', 'Download Cursor'),
@@ -430,6 +439,7 @@ export const TOOLS: Tool[] = [
     icon: 'smartphone',
     order: 4,
     docsUrl: 'https://developer.android.com/studio',
+    version: { brew: 'android-studio' },
     actions: {
       ...mac(link('https://developer.android.com/studio', 'Download Android Studio')),
       linux: link('https://developer.android.com/studio', 'Download Android Studio'),
@@ -473,12 +483,17 @@ export const TOOLS: Tool[] = [
     icon: 'container',
     order: 5,
     docsUrl: 'https://www.docker.com/products/docker-desktop/',
+    version: { brew: 'docker-desktop' },
     actions: {
       'mac-arm': link('https://desktop.docker.com/mac/main/arm64/Docker.dmg'),
       'mac-intel': link('https://desktop.docker.com/mac/main/amd64/Docker.dmg'),
       'win-x64': link('https://desktop.docker.com/win/main/amd64/Docker%20Desktop%20Installer.exe'),
       'win-arm': link('https://desktop.docker.com/win/main/arm64/Docker%20Desktop%20Installer.exe'),
       linux: link('https://docs.docker.com/desktop/setup/install/linux/', 'Open install guide'),
+    },
+    secondary: {
+      ...mac(cmd('brew install --cask docker-desktop')),
+      ...win(cmd('winget install --id Docker.DockerDesktop -e --accept-source-agreements --accept-package-agreements')),
     },
   },
   {
@@ -494,6 +509,9 @@ export const TOOLS: Tool[] = [
       ...mac(cmd('brew install --cask reactotron')),
       linux: link('https://github.com/infinitered/reactotron/releases', 'Download (releases)'),
       ...win(link('https://github.com/infinitered/reactotron/releases', 'Download (releases)')),
+    },
+    secondary: {
+      ...win(cmd('winget install --id InfiniteRed.Reactotron -e --accept-source-agreements --accept-package-agreements')),
     },
   },
   {
@@ -523,6 +541,7 @@ export const TOOLS: Tool[] = [
     icon: 'database',
     order: 8,
     docsUrl: 'https://www.pgadmin.org',
+    version: { brew: 'pgadmin4' },
     actions: {
       ...mac(link('https://www.pgadmin.org/download/', 'Download pgAdmin')),
       linux: link('https://www.pgadmin.org/download/', 'Download pgAdmin'),
@@ -541,6 +560,7 @@ export const TOOLS: Tool[] = [
     icon: 'zap',
     order: 9,
     docsUrl: 'https://learning.postman.com',
+    version: { brew: 'postman' },
     actions: {
       ...mac(link('https://www.postman.com/downloads/', 'Download Postman')),
       linux: link('https://www.postman.com/downloads/', 'Download Postman'),
@@ -559,6 +579,7 @@ export const TOOLS: Tool[] = [
     icon: 'monitor',
     order: 10,
     docsUrl: 'https://termius.com',
+    version: { brew: 'termius' },
     actions: {
       ...mac(link('https://termius.com/download', 'Download Termius')),
       linux: link('https://termius.com/download', 'Download Termius'),
@@ -594,10 +615,15 @@ export const TOOLS: Tool[] = [
     icon: 'message-circle',
     order: 12,
     docsUrl: 'https://www.zoho.com/cliq/',
+    version: { brew: 'zoho-cliq' },
     actions: {
       ...mac(link('https://www.zoho.com/cliq/desktop/osx.html', 'Download Cliq')),
       linux: link('https://www.zoho.com/cliq/desktop/linux.html', 'Download Cliq'),
       ...win(link('https://www.zoho.com/cliq/desktop/windows.html', 'Download Cliq')),
+    },
+    secondary: {
+      ...mac(cmd('brew install --cask zoho-cliq')),
+      ...win(cmd('winget install --id Zoho.Cliq -e --accept-source-agreements --accept-package-agreements')),
     },
   },
   {
@@ -608,6 +634,11 @@ export const TOOLS: Tool[] = [
     icon: 'users',
     order: 13,
     docsUrl: 'https://www.microsoft.com/en-us/microsoft-teams/download-app',
+    // Mac only: Teams ships a different build per OS and the cask carries the
+    // macOS one, so a single badge would be wrong on Windows. The Windows number
+    // is only published as folder names in the winget-pkgs repo — a 63 KB
+    // directory listing for one badge, declined in 0021.
+    version: { ...mac({ brew: 'microsoft-teams' }) },
     actions: {
       ...mac(link('https://www.microsoft.com/en-us/microsoft-teams/download-app', 'Download Teams')),
       linux: link('https://www.microsoft.com/en-us/microsoft-teams/download-app', 'Download Teams'),
@@ -626,6 +657,7 @@ export const TOOLS: Tool[] = [
     icon: 'hash',
     order: 14,
     docsUrl: 'https://slack.com/downloads',
+    version: { brew: 'slack' },
     actions: {
       'mac-arm': link('https://slack.com/ssb/download-osx-silicon'),
       'mac-intel': link('https://slack.com/ssb/download-osx'),
@@ -771,6 +803,7 @@ export const TOOLS: Tool[] = [
     icon: 'zap',
     order: 4,
     docsUrl: 'https://github.com/obra/superpowers',
+    version: { github: 'obra/superpowers' },
     modal: {
       intro: 'Teaches Claude a disciplined workflow: brainstorm → plan → TDD → verify. Send each command as its own prompt in Claude Code.',
       steps: [
@@ -787,6 +820,7 @@ export const TOOLS: Tool[] = [
     icon: 'scissors',
     order: 6,
     docsUrl: 'https://github.com/DietrichGebert/ponytail',
+    version: { github: 'DietrichGebert/ponytail' },
     note: 'Ships two Node lifecycle hooks that run on Claude Code events — skim them before you approve. Takes effect in a new session.',
     modal: {
       intro: 'A lazy-senior-dev mindset: no speculative abstractions, no scaffolding for later, standard library before a new dependency. Send each command as its own prompt in Claude Code.',
@@ -804,6 +838,7 @@ export const TOOLS: Tool[] = [
     icon: 'palette',
     order: 7,
     docsUrl: 'https://github.com/nextlevelbuilder/ui-ux-pro-max-skill',
+    version: { github: 'nextlevelbuilder/ui-ux-pro-max-skill' },
     modal: {
       intro: 'Our frontend design skill — treats React Native as a first-class stack.',
       steps: [

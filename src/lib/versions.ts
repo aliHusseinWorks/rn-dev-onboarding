@@ -1,17 +1,31 @@
 import { useEffect, useState } from 'react'
 
-// Where a tool's latest version can be looked up, client-side. All four
+// Where a tool's latest version can be looked up, client-side. All five
 // registries send Access-Control-Allow-Origin: * (verified), so this works
 // from the static GitHub Pages deployment.
 export type VersionSource =
   | { npm: string }
   | { github: string } // owner/repo — latest release tag
+  | { brew: string } // Homebrew cask token — for GUI apps with no public release feed
   | { pypi: string }
   | { nodeLts: true }
 
 const TTL_MS = 6 * 60 * 60 * 1000 // 6h — fresh enough, and keeps GitHub's 60/hr anonymous API limit far away
 const keyOf = (s: VersionSource): string =>
-  'npm' in s ? `npm:${s.npm}` : 'github' in s ? `gh:${s.github}` : 'pypi' in s ? `pypi:${s.pypi}` : 'node-lts'
+  'npm' in s
+    ? `npm:${s.npm}`
+    : 'github' in s
+      ? `gh:${s.github}`
+      : 'brew' in s
+        ? `brew:${s.brew}`
+        : 'pypi' in s
+          ? `pypi:${s.pypi}`
+          : 'node-lts'
+
+// Release tags and cask versions carry extra parts: "v2.55.0.windows.3",
+// "3.13.10,4f02290cc", "2026.1.2.11,quail2-patch1" — keep the leading
+// dotted-number part.
+const dottedPart = (raw: string): string => raw.match(/\d+(\.\d+)+/)?.[0] ?? raw.replace(/^v/i, '')
 
 function readCache(key: string): string | null {
   try {
@@ -43,10 +57,16 @@ async function fetchLatest(source: VersionSource): Promise<string | null> {
       const r = await fetch(`https://api.github.com/repos/${source.github}/releases/latest`)
       if (!r.ok) return null
       const tag = ((await r.json()) as { tag_name?: string }).tag_name ?? null
-      if (!tag) return null
-      // Tags vary: "v2.55.0.windows.3", "1.130.0", "v2026.07.20.00" — keep the
-      // leading dotted-number part.
-      return tag.match(/\d+(\.\d+)+/)?.[0] ?? tag.replace(/^v/i, '')
+      return tag ? dottedPart(tag) : null
+    }
+    if ('brew' in source) {
+      // Static JSON, so no rate limit to budget for (unlike GitHub's 60/hr), and
+      // it carries the app's own version rather than a repo tag. Casks pinned
+      // `version :latest` report the string "latest" — no version to show.
+      const r = await fetch(`https://formulae.brew.sh/api/cask/${source.brew}.json`)
+      if (!r.ok) return null
+      const v = ((await r.json()) as { version?: string }).version
+      return v && v !== 'latest' ? dottedPart(v) : null
     }
     if ('pypi' in source) {
       const r = await fetch(`https://pypi.org/pypi/${source.pypi}/json`)

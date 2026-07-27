@@ -17,6 +17,12 @@
   --color-accent-contrast: var(--accent-contrast);
   --color-destructive: var(--destructive);
   --color-warning: var(--warning);
+  --color-ai: var(--ai);
+  --color-ai-strong: var(--ai-strong);
+  --color-ai-contrast: var(--ai-contrast);
+
+  --shadow-lift: 0 6px 20px -6px var(--shadow);
+  --shadow-ai: 0 4px 16px -6px var(--ai);
 
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
@@ -30,6 +36,7 @@
   --muted: #1e293b;
   --border: #24314a;
   --border-strong: #3b4a63;
+  --shadow: rgba(2, 6, 17, 0.55);
   --fg: #f1f5f9;
   --fg-muted: #94a3b8;
   --fg-subtle: #64748b;
@@ -38,6 +45,11 @@
   --accent-contrast: #052e16;
   --destructive: #f87171;
   --warning: #fbbf24;
+  /* Indigo carries "the agent does it for you", so green can keep meaning
+     "installs one tool / already installed". No category accent uses it. */
+  --ai: #818cf8;
+  --ai-strong: #6366f1;
+  --ai-contrast: #1e1b4b;
 }
 
 :root.light {
@@ -48,6 +60,7 @@
   --muted: #f1f5f9;
   --border: #e2e8f0;
   --border-strong: #cbd5e1;
+  --shadow: rgba(15, 23, 42, 0.12);
   --fg: #0f172a;
   --fg-muted: #475569;
   --fg-subtle: #64748b;
@@ -56,6 +69,9 @@
   --accent-contrast: #ffffff;
   --destructive: #dc2626;
   --warning: #d97706;
+  --ai: #4f46e5;
+  --ai-strong: #4338ca;
+  --ai-contrast: #ffffff;
 }
 
 html {
@@ -81,6 +97,23 @@ body {
   overflow-x: clip;
 }
 
+/* Height of the sticky toolbar, so section headers pin flush beneath it and
+   jump targets clear it. Measured, not derived: the controls wrap below 25rem,
+   and the chip strip is gone at xl. */
+:root {
+  --bar-h: 155px;
+}
+@media (min-width: 25rem) {
+  :root {
+    --bar-h: 105px;
+  }
+}
+@media (min-width: 80rem) {
+  :root {
+    --bar-h: 63px;
+  }
+}
+
 /* Ambient glow behind the header — atmospheric, cheap, GPU-friendly. */
 .ambient {
   background:
@@ -99,8 +132,61 @@ body {
   }
 }
 
+/* backwards, not both: a retained final `transform: none` outranks the hover lift on cards. */
 .card-in {
-  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: card-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes check-pop {
+  0% {
+    transform: scale(0.5);
+  }
+  60% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.check-pop {
+  animation: check-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* The AI setup button is the one control that installs everything at once, so a
+   light travels around its edge. Masked to a 1.5px ring rather than an actual
+   border, which would make it taller than the buttons beside it. */
+@property --ai-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+.ai-cta::after {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: conic-gradient(
+    from var(--ai-angle),
+    transparent 0 60%,
+    color-mix(in oklab, white 55%, var(--ai)) 74%,
+    white 82%,
+    transparent 92%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  animation: ai-angle 3.2s linear infinite;
+}
+
+@keyframes ai-angle {
+  to {
+    --ai-angle: 360deg;
+  }
 }
 
 /* Fill-in tokens inside modal commands/prompts: unfilled {tokens} pulse to
@@ -140,12 +226,28 @@ body {
   border-radius: 9999px;
 }
 
+/* Single-line commands hide their scrollbar until the row is hovered. Plain CSS, not a
+   Tailwind utility: this file is unlayered, so it wins over the layered utilities. */
+.cmd-scroll {
+  scrollbar-width: none;
+}
+.group\/cmd:hover .cmd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
   }
   .card-in {
     animation: none;
+  }
+  .check-pop {
+    animation: none;
+  }
+  .ai-cta::after {
+    display: none;
   }
   .token-glow {
     animation: none;

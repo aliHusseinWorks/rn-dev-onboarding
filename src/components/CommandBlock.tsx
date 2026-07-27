@@ -78,8 +78,8 @@ export function CommandBlock({
   }
 
   return (
-    <div className={`flex items-center rounded-lg border border-border ${surface}`}>
-      <code className="thin-scroll min-w-0 flex-1 overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-[13px] text-fg-muted">
+    <div className={`group/cmd flex items-center rounded-lg border border-border ${surface}`}>
+      <code className="cmd-scroll mask-r-from-[calc(100%-2.5rem)] min-w-0 flex-1 overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-[13px] text-fg-muted">
         {display ?? command}
       </code>
       <Tooltip label={tip} align="end" className="self-stretch border-l border-border">

@@ -21,7 +21,7 @@ Despite the repo name, this is **not a React Native mobile app**. It is a single
 - Revisiting or contradicting a past choice: check `docs/decisions/` first.
 
 **Update after (same session, before finishing):**
-- Shipped a feature/fix → one line in `docs/CHANGELOG.md` under Unreleased.
+- Shipped a feature/fix → one line in `docs/CHANGELOG.md` under today's `## YYYY-MM-DD` heading, adding it if today has none.
 - Made a decision with the user (chose between approaches, rejected an option) → new numbered file in `docs/decisions/`; never edit old ones, supersede them.
 - Deferred an idea or left a known gap → add it to `docs/TODO.md`; tick items you completed.
 - Changed structure or stack → update `docs/ARCHITECTURE.md`.
