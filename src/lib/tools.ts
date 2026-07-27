@@ -758,13 +758,17 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://github.com/ogulcancelik/herdr',
     version: { github: 'ogulcancelik/herdr' },
     modal: {
-      intro: 'One paste gives you a double-clickable herdr launcher carrying its own icon — nothing to download. herdr reopens the workspaces it saved itself, so the launcher only has to start it.',
-      prereq: 'herdr installed (this card).',
+      intro: 'herdr saves your tabs and folders itself; reopening each pane in the Claude conversation you left it in is the integration\'s job. The launcher is optional — one paste for a double-clickable shortcut carrying its own icon, nothing to download.',
+      prereq: 'herdr installed (this card); Claude Code installed (card above) for the integration step.',
       fields: [
         { key: 'dest', label: 'Install to', placeholder: 'Desktop' },
         { key: 'iconData', label: 'Custom icon', kind: 'image' },
       ],
       steps: [
+        {
+          command: 'herdr integration install claude',
+          note: 'Once per machine. Without it a restart returns your tabs as bare shells; with it each pane reopens in the conversation you left. Keep one conversation per pane — two panes sharing one and only one comes back.',
+        },
         {
           command: {
             'mac-arm': HERDR_LAUNCH_UNIX,

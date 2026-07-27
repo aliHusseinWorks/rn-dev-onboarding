@@ -44,6 +44,12 @@ this file exists only because this repo has no board.
       an open Bitbucket PR, and worth a fourth profile if it does populate.
 - [ ] Verify Zoho Cliq's Windows install dir (`detect.ts` guesses
       `$env:LOCALAPPDATA\Programs\zoho-cliq`) on a machine that has it.
+- [ ] herdr's detect spec (`bins: ['herdr']`) can't see whether the Claude
+      integration from [0029](decisions/0029-herdr-persistence-needs-the-integration-not-config.md)
+      is installed, so a machine that restores every pane as a bare shell still
+      ticks the card as done. `HERDR_INTEGRATION_ID` in `~/.claude/hooks/` would
+      catch it; weigh that against a hand-written needle for something that isn't
+      a tool.
 - [x] Teams desktop showed no version badge because the `microsoft-teams` cask
       reports the macOS build (26183.1901.4874.5228) and Windows Teams numbers
       diverge from it. `version` takes a per-platform map now, so mac shows the
