@@ -34,7 +34,7 @@ src/
   components/         one PascalCase component per file, named export
   lib/                camelCase modules:
     tools.ts            THE data table: categories + tools (most features are data-only edits here)
-    detect.ts           DETECT_SPECS (how each tool is detected) + eligibility + parsing
+    detect.ts           DETECT_SPECS (how each tool is detected) + eligibility + parsing + what a result does to the checklist
     detectScript.ts     scan-script generators (PowerShell 5.1 / POSIX sh) + session codes
     commands.ts         pure helpers over tools.ts (resolve actions, availability)
     platform.ts         OS/arch detection (UA + WebGL + UA-CH quirks)
@@ -49,6 +49,12 @@ public/               served at the site root: favicon, plus the herdr launcher
 wrangler.toml         Pages project + KV binding
 docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
                       decisions/ (see CLAUDE.md contract; README stays at root)
+.claude/              the team's committed Claude Code wiring:
+  rules/                code-style.md, security.md — path-scoped, auto-loaded
+  hooks/guard.mjs       the two rules context can't guarantee (see settings.json)
+  settings.json         permissions.deny + hook registration
+  skills/              rn-component, rn-screen, api-integration, new-feature, fix-bug
+  agents/              architect, code-reviewer, consistency-checker, security-reviewer
 ```
 
 ## When you need X, use Y
@@ -69,9 +75,8 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
 
 ## Code conventions
 
-- Components: function declarations, named exports (`export function ToolCard(…)`); no default exports, no `React.FC`. Props: local `interface Props`, destructured in the signature; `import type` for types.
-- Module-level pure functions are `function` declarations; in-component helpers are `const` arrows.
-- Async: fire-and-forget marked `void`; failures degrade silently to fallbacks. No error toasts or boundaries.
-- Style: no semicolons, single quotes, trailing commas, 2-space indent; no formatter — match by hand.
-- Accessibility is habitual: `aria-*` on icon buttons, `role="dialog"`/`aria-modal`, global `focus-visible`, `prefers-reduced-motion`.
-- Comments only for non-obvious whys (platform quirks, workarounds, data-shape rules) — match existing density.
+`.claude/rules/code-style.md` — TypeScript, naming, imports, structure and
+comments. It lives there rather than here because Claude Code loads
+`.claude/rules/*.md` on its own when a matching file is touched, and one copy
+can't drift from another ([0030](decisions/0030-conventions-as-rules-and-hooks.md)).
+`.claude/rules/security.md` does the same for the three trust boundaries.

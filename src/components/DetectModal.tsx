@@ -1,71 +1,33 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { CheckCircle2, RefreshCw, Undo2 } from 'lucide-react'
-import { detectGroups, parseResultLine, RESULT_PREFIX } from '../lib/detect'
+import { detectGroups, parseResultLine, RESULT_PREFIX, type Applied } from '../lib/detect'
 import { generateDetectScript } from '../lib/detectScript'
 import { PLATFORM_INFO, type PlatformId } from '../lib/platform'
-import { useDetectSession, type DetectReport } from '../lib/useDetectSession'
+import type { DetectReport, DetectSession } from '../lib/useDetectSession'
 import { CommandBlock } from './CommandBlock'
 import { Modal } from './Modal'
 
 interface Props {
   platform: PlatformId
-  // Read only to snapshot what a scan is about to overwrite.
-  installed: Record<string, boolean>
-  // Batch-set installed state. A scan applies its whole result, both
-  // directions — Undo is what protects a tick the scan couldn't see.
-  onApply: (ids: string[], value: boolean) => void
+  // Session and result both belong to App: they outlive this modal, and a
+  // report can arrive while it's closed.
+  session: DetectSession
+  applied: Applied | null
+  onApplyReport: (report: DetectReport) => void
+  onUndo: () => void
+  onScanAgain: () => void
   onClose: () => void
 }
 
-interface Applied {
-  found: string[]
-  notFound: string[]
-  // Platform id the scan actually ran on, when it differs from the page.
-  mismatch: string | null
-  // Pre-scan state of every scanned tool, replayed verbatim by Undo.
-  before: { on: string[]; off: string[] }
-  undone: boolean
-}
-
-export function DetectModal({ platform, installed, onApply, onClose }: Props) {
+export function DetectModal({ platform, session, applied, onApplyReport, onUndo, onScanAgain, onClose }: Props) {
   const [manualText, setManualText] = useState('')
   const [manualError, setManualError] = useState(false)
-  const [applied, setApplied] = useState<Applied | null>(null)
-  const session = useDetectSession()
 
   const scannable = useMemo(() => detectGroups(platform).flatMap((g) => g.tools), [platform])
   const script = useMemo(() => generateDetectScript(platform, session.code), [platform, session.code])
 
-  const scannableIds = scannable.map((t) => t.id)
   const nameOf = (id: string) => scannable.find((t) => t.id === id)?.name ?? id
   const isWindows = PLATFORM_INFO[platform].os === 'win'
-
-  const applyReport = (report: DetectReport) => {
-    // Whitelist against our own scan list — relay/paste data never writes
-    // arbitrary ids into localStorage.
-    const found = report.found.filter((id) => scannableIds.includes(id))
-    const mismatch = report.platform !== platform
-    // A scan from another platform says nothing about this checklist, so it
-    // ticks what it found and clears nothing.
-    const notFound = mismatch ? [] : scannableIds.filter((id) => !found.includes(id))
-    const before = {
-      on: scannableIds.filter((id) => installed[id]),
-      off: scannableIds.filter((id) => !installed[id]),
-    }
-    onApply(found, true)
-    onApply(notFound, false)
-    setApplied({ found, notFound, mismatch: mismatch ? report.platform : null, before, undone: false })
-  }
-
-  // Auto-apply the relay report exactly once per session code (guards Strict
-  // Mode double-invokes and re-renders).
-  const lastAppliedCode = useRef<string | null>(null)
-  useEffect(() => {
-    if (!session.report || lastAppliedCode.current === session.code) return
-    lastAppliedCode.current = session.code
-    applyReport(session.report)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.report, session.code])
 
   const applyManual = () => {
     const ids = parseResultLine(manualText)
@@ -74,21 +36,13 @@ export function DetectModal({ platform, installed, onApply, onClose }: Props) {
       return
     }
     setManualError(false)
-    applyReport({ platform, found: ids }) // manual paste: assume current platform
+    onApplyReport({ platform, found: ids }) // manual paste: assume current platform
   }
 
   const scanAgain = () => {
-    setApplied(null)
     setManualText('')
     setManualError(false)
-    session.restart()
-  }
-
-  const undo = () => {
-    if (!applied) return
-    onApply(applied.before.on, true)
-    onApply(applied.before.off, false)
-    setApplied({ ...applied, undone: true })
+    onScanAgain()
   }
 
   return (
@@ -111,23 +65,12 @@ export function DetectModal({ platform, installed, onApply, onClose }: Props) {
             {session.status === 'waiting' && (
               <span className="flex items-center gap-1.5 text-fg-muted">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-                Waiting for the scan… checks every 2s, code expires in 10 min.
+                Waiting for the scan — you can close this, the page picks it up whenever it runs.
               </span>
             )}
             {session.status === 'received' && !applied?.undone && (
               <span className="flex items-center gap-1.5 text-accent">
                 <CheckCircle2 size={14} /> Result received.
-              </span>
-            )}
-            {session.status === 'expired' && (
-              <span className="flex items-center gap-2 text-warning">
-                Code expired.
-                <button
-                  onClick={scanAgain}
-                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-fg-muted transition-colors hover:text-fg cursor-pointer"
-                >
-                  <RefreshCw size={12} /> New code
-                </button>
               </span>
             )}
             {session.unreachable && session.status === 'waiting' && (
@@ -205,7 +148,7 @@ export function DetectModal({ platform, installed, onApply, onClose }: Props) {
             <div className="flex flex-wrap items-center gap-3">
               {!applied.undone && (
                 <button
-                  onClick={undo}
+                  onClick={onUndo}
                   className="inline-flex items-center gap-1 text-fg-subtle underline decoration-dotted underline-offset-2 transition-colors hover:text-fg cursor-pointer"
                 >
                   <Undo2 size={12} /> Undo

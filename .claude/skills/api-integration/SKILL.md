@@ -7,7 +7,7 @@ description: Add a network call using the project's existing bare-fetch pattern 
 
 There is no API client, no axios, no fetch wrapper — and you must not create one. The entire network surface of this app is `src/lib/versions.ts` (client-side version lookups against public registries). That file **is** the pattern; extend it or copy its shape into a sibling `src/lib/` module.
 
-This is a static site on GitHub Pages: any endpoint you call must send permissive CORS headers (`versions.ts` documents that all four registries were verified to do so — verify yours the same way and say so in a comment if non-obvious).
+The page runs in the browser on Cloudflare Pages: any endpoint you call must send permissive CORS headers (`versions.ts` documents that all four registries were verified to do so — verify yours the same way and say so in a comment if non-obvious).
 
 ## The pattern, from `versions.ts`
 

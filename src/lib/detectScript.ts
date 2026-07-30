@@ -54,7 +54,7 @@ function header(platform: PlatformId, code: string): string[] {
   if (DETECT_ENDPOINT) {
     lines.push(
       `# The ONLY data sent: one-time code ${code}, platform id "${platform}",`,
-      '# and the ids of tools found. The code works once and expires in 10 minutes.',
+      '# and the ids of tools found. The code works once; the result is kept 10 minutes.',
     )
   } else {
     lines.push('# Nothing is sent anywhere - paste the RN-ONBOARD/1 result line back into the page.')

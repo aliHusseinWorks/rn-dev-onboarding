@@ -1,9 +1,12 @@
 ---
-description: Reproduce a bug by reading the code, propose the minimal fix, implement the smallest possible diff.
+name: fix-bug
+description: Reproduce a bug by reading the code, propose the minimal fix, implement the smallest possible diff. Use for any "this is broken / doesn't work / wrong behavior" request.
 argument-hint: <bug description>
 ---
 
-Fix a bug in this repo: $ARGUMENTS
+# Fixing a bug in this repo
+
+The bug: $ARGUMENTS
 
 Follow CLAUDE.md's six rules. Process:
 

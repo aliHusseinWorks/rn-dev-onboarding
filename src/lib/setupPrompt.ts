@@ -48,18 +48,23 @@ PHASE 2 — CREATE THE WORKSPACE
 Create this structure:
 .claude/
 ├── settings.json
+├── rules/
+│   ├── code-style.md
+│   ├── security.md
+│   └── testing.md          (only if the repo has a test suite)
+├── hooks/
+│   └── guard.mjs           (only if a hook below actually has something to run)
 ├── skills/
 │   ├── rn-component/SKILL.md
 │   ├── rn-screen/SKILL.md
-│   └── api-integration/SKILL.md
-├── agents/
-│   ├── architect.md
-│   ├── code-reviewer.md
-│   ├── consistency-checker.md
-│   └── security-reviewer.md
-└── commands/
-    ├── new-feature.md
-    └── fix-bug.md
+│   ├── api-integration/SKILL.md
+│   ├── new-feature/SKILL.md
+│   └── fix-bug/SKILL.md
+└── agents/
+    ├── architect.md
+    ├── code-reviewer.md
+    ├── consistency-checker.md
+    └── security-reviewer.md
 docs/
 ├── ARCHITECTURE.md
 ├── CHANGELOG.md
@@ -73,7 +78,7 @@ IMPORTANT: Before creating any file, check whether it (or an equivalent) already
 CLAUDE.md must encode these non-negotiable rules for every future session, stated explicitly:
 1. REUSE BEFORE CREATE — before writing any component, hook, utility, style, or service, search the codebase for an existing one and use it. Never rebuild something that exists, and never duplicate logic "cleaner" in a new file.
 2. MATCH THE EXISTING STYLE EXACTLY — same naming, same file organization, same component patterns, same styling approach, and always the existing theme/design tokens. Never introduce a new styling method, new color values, new spacing constants, or a new architectural pattern. New UI must look like it was built by the same person who built the rest of the app.
-3. NO AI-STYLE COMMENTS — no comments that narrate the obvious ("// Set loading to true", "// Return the component", "// Handle the response"), no section-banner comments, no emoji, no "Note:" explainers. Comments are allowed only where a hand-written codebase would genuinely have one: a non-obvious workaround, a platform quirk, a business rule that isn't self-evident. Match the comment density of the existing code — if the codebase is nearly comment-free, new code should be too.
+3. NO AI-STYLE COMMENTS — no comments that narrate the obvious ("// Set loading to true", "// Return the component", "// Handle the response"), no section-banner comments, no emoji, no "Note:" explainers. Comments are allowed only where a hand-written codebase would genuinely have one: a non-obvious workaround, a platform quirk, a business rule that isn't self-evident. Match the comment density of the existing code — if the codebase is nearly comment-free, new code should be too. Never narrate history: not what the code used to do, what bug a change fixed, what a review caught, or what happened "previously". That belongs in the commit message and the changelog, which stay attached to the change, whereas a comment describing a bug that no longer exists is a lie by the next refactor. Same rule in tests — a test name states the behaviour, a docblock re-telling the bug it came from adds nothing.
 4. NO UNSOLICITED EXTRAS — no new tests, no test files, no README additions, no refactors of untouched code, no dependency additions, no config changes, unless explicitly asked. Do exactly the task, nothing around it.
 5. MINIMAL DIFFS — touch the fewest files and lines needed. Never reformat or reorganize code you didn't need to change.
 6. NEVER COMMIT OR PUSH UNPROMPTED — no git commit, push, branch creation, or PR unless the user explicitly asks in that session. Asking once does not grant it for later. Never use --force or rewrite history.
@@ -83,12 +88,24 @@ CLAUDE.md must also encode the docs contract, stated as rules:
 - Update after, in the same session: shipped a feature/fix → one line in docs/CHANGELOG.md under today's date; made a decision with the user → new numbered file in docs/decisions/ (never edit old ones, supersede them); changed structure or stack → update docs/ARCHITECTURE.md. Any change to one surface must ripple to everything that consumes it (configs, generated prompts, docs) in the same session.
 - Workflow gates: substantive features start with the architect agent (design before code) and end with code-reviewer + consistency-checker; changes touching auth, storage, networking, deep links, or WebViews also run security-reviewer.
 
-Keep CLAUDE.md itself short: the six rules, the docs contract, and quick facts (package manager, run commands for iOS and Android, lint command) — only if not already documented. Everything structural goes in docs/ARCHITECTURE.md, which you write from Phase 1: folder map, navigation and state libraries, theme file locations all new UI must consume, data flow, and a "when you need X, use Y, never Z" table of the repo's actual patterns. Seed docs/CHANGELOG.md with a header stating its convention — newest first, one section per day (## YYYY-MM-DD), Added/Changed/Removed/Fixed in that order inside each — and today's date as the first section; a repo that tags releases can use version headings instead. Write docs/decisions/0001 recording this workspace setup itself (what was created and why). All project docs live under docs/ (README stays at the root). If any of these docs already exist, extend rather than recreate them.
+Keep CLAUDE.md itself short: the six rules, the docs contract, quick facts (package manager, run commands for iOS and Android, lint command), and one line pointing at \`.claude/rules/\` for the concrete conventions — only if not already documented. Each fact lives in exactly one place: the conventions go in the rule file and are not restated in CLAUDE.md or ARCHITECTURE.md, or the two copies drift and a future session follows the stale one. Everything structural goes in docs/ARCHITECTURE.md, which you write from Phase 1: folder map, navigation and state libraries, theme file locations all new UI must consume, data flow, and a "when you need X, use Y, never Z" table of the repo's actual patterns. Seed docs/CHANGELOG.md with a header stating its convention — newest first, one section per day (## YYYY-MM-DD), Added/Changed/Removed/Fixed in that order inside each — and today's date as the first section; a repo that tags releases can use version headings instead. Write docs/decisions/0001 recording this workspace setup itself (what was created and why). All project docs live under docs/ (README stays at the root). If any of these docs already exist, extend rather than recreate them.
 
-Skills (each SKILL.md: YAML frontmatter with name + description, then instructions grounded in the project's real patterns, citing actual example files from this repo as the reference to imitate):
+Rules (\`.claude/rules/*.md\` — Claude Code loads these on its own, so this is where the conventions live rather than in a prose doc nobody opens. Give each file YAML frontmatter with a \`paths:\` list of globs, so it loads only when Claude touches matching files:
+---
+paths:
+  - "src/**/*.{ts,tsx}"
+---
+Write nothing in these files that isn't already true of this codebase. A rule file that reproduces an idealized style guide instead of THIS repo makes every future contribution inconsistent, which is the exact failure this setup exists to prevent):
+- code-style.md, scoped to the app's source globs — the conventions you measured in Phase 1, stated concretely enough to verify: interface vs type, how strict the TS config actually is, naming for files/components/hooks/constants, import order and whether a path alias exists, function declarations vs arrows, named vs default exports, the real async and error-handling patterns, indentation and quote/semicolon style, and the comment rules from rule 3 in full. Cite real files from this repo as the reference to imitate. Do NOT import rules the code visibly doesn't follow — no max-function-length or early-return rule if the codebase ignores it, no \`async/await\` mandate where it uses \`.then()\`, no \`@/\` alias unless one is configured.
+- security.md, scoped to the trust boundaries you actually found (API client and auth/token handling, secure storage, deep links, WebViews, native bridge, anything that reaches the network) — the invariants that must stay true there, phrased as what must not regress in the code that exists, not a generic OWASP checklist.
+- testing.md, scoped to the test globs — ONLY if this repo has a test suite. Encode the runner, where tests live, the patterns to imitate, and rule 4 (no new tests unless asked). If there is no test suite, skip this file entirely rather than inventing a testing policy the team never agreed to.
+
+Skills (\`.claude/skills/<name>/SKILL.md\`, which is what gives you \`/<name>\`. Custom commands were merged into skills, so do NOT create a \`.claude/commands/\` directory — the same file as a skill also loads automatically when Claude judges it relevant, where a command only ever fires when someone types it. Each SKILL.md: YAML frontmatter with name + description, then instructions grounded in the project's real patterns, citing actual example files from this repo as the reference to imitate. Put the trigger in the description — "Use whenever …" — since that text is all Claude sees when deciding whether to load it. The two workflow skills take an argument, so give them an \`argument-hint\` and use \`$ARGUMENTS\` in the body):
 - rn-component: creating a component that is indistinguishable from existing ones — reference 2-3 real components in this repo as the template.
 - rn-screen: creating and registering a screen exactly the way existing screens are registered, using the same navigation typing and safe-area handling already present.
 - api-integration: adding an API call through the existing client and error-handling pattern only — never a new fetch wrapper.
+- new-feature: plan which EXISTING screens/components/services can be reused, list what genuinely must be new, get confirmation, then implement via the skills above.
+- fix-bug: reproduce by reading the relevant code, propose the minimal fix, implement it with the smallest possible diff. No regression tests unless asked.
 
 Agents (markdown with YAML frontmatter: name, description, tools, model — all read-only):
 - architect: consulted BEFORE substantive work — evaluates a proposed feature against docs/ARCHITECTURE.md, docs/decisions/, and the actual code; answers where it should live, what existing screens/components/services to reuse, what is genuinely new, and what tempting approach would violate the structure. Proportional output: small request, short design.
@@ -96,11 +113,12 @@ Agents (markdown with YAML frontmatter: name, description, tools, model — all 
 - consistency-checker: compares new/changed code against neighboring existing files and flags anything that would reveal it wasn't hand-written by the team — style drift, off-theme values, AI-style comments, duplicated existing logic, or unrequested additions.
 - security-reviewer: reviews diffs at the app's actual trust boundaries, derived from Phase 1 (API clients and auth/token handling, secure storage — Keychain/EncryptedSharedPreferences vs AsyncStorage, deep links and WebViews, secrets in the bundle, PII in logs/crash reporting). Findings ordered by severity with file:line and the minimal fix; no theoretical padding.
 
-Commands:
-- new-feature: plan which EXISTING screens/components/services can be reused, list what genuinely must be new, get confirmation, then implement via the skills.
-- fix-bug: reproduce by reading the relevant code, propose the minimal fix, implement it with the smallest possible diff. No regression tests unless asked.
-
-settings.json: minimal. If the project has a formatter configured, hook it to run on edited files; otherwise add nothing.
+settings.json: permissions and hooks, nothing else. Rules are context and Claude can talk itself out of them; hooks and deny rules run whatever Claude decides, so they are the enforcement layer for the few things that must not depend on good behaviour. Add only ones that can actually fire in THIS repo, and run each one once before you finish to prove it does.
+- \`permissions.deny\`: hand-edits to the lockfile; generated and vendored native output (ios/Pods, android/build, .xcworkspace/xcuserdata, build/ artifacts); \`Edit\` on \`.env\` and its variants, plus \`Read\` on the ones holding real secrets (never .env.example); and the history rewrites rule 6 forbids outright — \`git push --force *\`, \`git push -f *\`, \`git commit --amend *\`, \`git rebase *\`, \`git reset --hard *\`. A command rule only wildcards with a space before the star: \`Bash(git rebase *)\` prefix-matches, while \`Bash(git rebase*)\` is an exact match on a command ending in an asterisk and so never fires. A flag that can also appear later in the line (\`git push origin --force\`) is out of reach of a prefix rule — take the common form and don't chase the rest. Paths use gitignore-style patterns anchored at the project (\`Edit(/ios/Pods/**)\`), and an \`Edit(...)\` rule already covers Write. Repeat the command rules under both \`Bash(...)\` and \`PowerShell(...)\` if the team is mixed-OS.
+- Wrong package manager: derive the right one from package.json \`packageManager\`, else from whichever lockfile exists, and deny the others whole (\`Bash(npm *)\`, \`Bash(yarn *)\`, …) rather than listing install subcommands, which leaves \`npm i\` open. Deny rules cover this — no hook script needed.
+- PostToolUse on \`Edit|Write\`: run the repo's OWN formatter on the edited file, if one is configured (prettier, biome, eslint --fix — whatever package.json actually has). Skip this hook if the repo has no formatter, or if its linter only ever emits warnings and therefore always exits 0: a hook that cannot fail is worse than no hook, and never add a formatter to give the hook something to do.
+- Stop: check that source edited today has its docs/CHANGELOG.md line, and exit 2 with the reason if not. That is the part of the docs contract a session skips first when it ends abruptly.
+Any hook that needs the tool input parses the hook JSON on stdin, so write it as one Node script under .claude/hooks/ that switches on \`hook_event_name\` — not a shell script. RN teams run mixed macOS and Windows machines and \`jq\` is a given on neither. A PreToolUse hook denies with \`hookSpecificOutput.permissionDecision\`; \`"ask"\` rather than \`"deny"\` where a human might legitimately approve the thing.
 
 PHASE 3 — REPORT
-Print a tree of what was created (and anything you skipped because it already existed), plus a one-line usage summary per skill, agent, and command. Do not modify a single line of application code during this setup.`
+Print a tree of what was created (and anything you skipped, because it already existed or because this repo gave it nothing to do), plus a one-line summary per rule, hook, skill and agent — for each hook, state that you ran it and what it did. Do not modify a single line of application code during this setup.`

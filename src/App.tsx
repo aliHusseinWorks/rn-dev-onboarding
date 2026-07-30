@@ -15,10 +15,12 @@ import { SearchBar } from './components/SearchBar'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Tooltip } from './components/Tooltip'
 import { isAvailable, isCheckable, matchesQuery } from './lib/commands'
+import { planApply, type Applied } from './lib/detect'
 import { iconFormatFor } from './lib/iconImage'
 import { detectPlatform, PLATFORMS, PLATFORM_INFO, refinePlatform, type PlatformId } from './lib/platform'
 import { fillTokens, renderTokens, shellSingleQuote } from './lib/tokens'
 import { CATEGORIES, TOOLS } from './lib/tools'
+import { useDetectSession, type DetectReport } from './lib/useDetectSession'
 import { useLocalStorage } from './lib/useLocalStorage'
 
 const PLATFORM_KEY = 'rn-onboard:platform'
@@ -37,6 +39,11 @@ export function App() {
   const [fieldValues, setFieldValues] = useState<Record<string, string>>({})
   const [aiSetupOpen, setAiSetupOpen] = useState(false)
   const [detectOpen, setDetectOpen] = useState(false)
+  // The scan session and its result outlive the modal: a report can land while
+  // it's closed, and Undo needs the pre-scan snapshot to survive a reopen.
+  const [detectArmed, setDetectArmed] = useState(false)
+  const [applied, setApplied] = useState<Applied | null>(null)
+  const session = useDetectSession(detectArmed)
   // Section fold state, keyed by category id. Missing key = open.
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [light, setLight] = useState(() => document.documentElement.classList.contains('light'))
@@ -74,6 +81,42 @@ export function App() {
       for (const id of ids) next[id] = value
       return next
     })
+
+  const openDetect = () => {
+    setDetectArmed(true)
+    setDetectOpen(true)
+  }
+
+  const applyReport = (report: DetectReport) => {
+    const next = planApply(report, platform, installed)
+    setInstalledMany(next.found, true)
+    setInstalledMany(next.notFound, false)
+    setApplied(next)
+  }
+
+  const undoApplied = () => {
+    if (!applied) return
+    setInstalledMany(applied.before.on, true)
+    setInstalledMany(applied.before.off, false)
+    setApplied({ ...applied, undone: true })
+  }
+
+  const scanAgain = () => {
+    setApplied(null)
+    session.restart()
+  }
+
+  // Apply a relay report exactly once per session code (guards Strict Mode
+  // double-invokes and re-renders). Another modal holding the screen keeps the
+  // panel closed — the ticks still land behind it.
+  const appliedCode = useRef<string | null>(null)
+  useEffect(() => {
+    if (!session.report || appliedCode.current === session.code) return
+    appliedCode.current = session.code
+    applyReport(session.report)
+    if (!aiSetupOpen && !modalToolId) setDetectOpen(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.report, session.code])
 
   useEffect(() => {
     const header = headerProgressRef.current
@@ -181,7 +224,7 @@ export function App() {
             className="shrink-0"
           >
             <button
-              onClick={() => setDetectOpen(true)}
+              onClick={openDetect}
               className="inline-flex items-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm font-medium text-fg transition-colors hover:border-accent/60 hover:bg-accent/15 cursor-pointer"
             >
               <ScanSearch size={16} />
@@ -267,8 +310,11 @@ export function App() {
       {detectOpen && (
         <DetectModal
           platform={platform}
-          installed={installed}
-          onApply={setInstalledMany}
+          session={session}
+          applied={applied}
+          onApplyReport={applyReport}
+          onUndo={undoApplied}
+          onScanAgain={scanAgain}
           onClose={() => setDetectOpen(false)}
         />
       )}

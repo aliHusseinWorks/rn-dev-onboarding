@@ -800,24 +800,8 @@ export const TOOLS: Tool[] = [
       linux: cmd('curl -fsSL https://herdr.dev/install.sh | sh'),
       ...win(cmd('powershell -ExecutionPolicy Bypass -c "irm https://herdr.dev/install.ps1 | iex"', 'Copy install (beta)')),
     },
-    secondary: { ...mac(cmd('brew install herdr')) },
+    secondary: { ...mac(cmd('brew install herdr', 'Copy brew install')) },
   },
-  {
-    id: 'uv',
-    category: 'ai',
-    name: 'uv',
-    description: 'Python tool manager — brings its own Python.',
-    icon: 'feather',
-    order: 3,
-    docsUrl: 'https://docs.astral.sh/uv/',
-    version: { github: 'astral-sh/uv' },
-    actions: {
-      ...mac(cmd('curl -LsSf https://astral.sh/uv/install.sh | sh')),
-      linux: cmd('curl -LsSf https://astral.sh/uv/install.sh | sh'),
-      ...win(cmd('winget install --id astral-sh.uv -e --accept-source-agreements --accept-package-agreements')),
-    },
-  },
-
   {
     id: 'superpowers',
     category: 'ai',
@@ -1061,7 +1045,7 @@ export const TOOLS: Tool[] = [
     icon: 'clipboard-list',
     order: 1,
     modal: {
-      intro: 'One-time per repo. If the repo you cloned already has a .claude/ folder committed, SKIP this — you already got the setup with the clone. Otherwise, paste this into Claude Code inside the project: it studies the codebase, then sets up our workspace so AI contributions match the hand-written style.',
+      intro: 'One-time per repo. If the repo you cloned already has a .claude/ folder committed, SKIP this — you already got the setup with the clone. Otherwise, paste this into Claude Code inside the project: it studies the codebase, then sets up our workspace so AI contributions match the hand-written style — rules, hooks, skills, agents and the docs system.',
       prompt: SETUP_PROMPT,
       copyLabel: 'Copy prompt',
     },
@@ -1074,7 +1058,7 @@ export const TOOLS: Tool[] = [
     icon: 'gauge',
     order: 2,
     docsUrl: 'https://code.claude.com/docs/en/statusline',
-    note: 'Two things no profile can show. Permission mode: the "auto mode on" line is Claude Code\'s own footer, drawn below the statusline and not yours to replace — so there is no "am I in bypass mode" bar. Rate limits: absent until the session\'s first API response, so the recommended bar is partly blank on the first prompt, and stays blank on API billing rather than a Pro or Max plan.',
+    note: 'Two things no profile can show: permission mode, which Claude Code draws in its own footer below, and rate limits before the session\'s first API response — blank throughout on API billing.',
     modal: {
       intro: 'Pick ONE and send it as a prompt in Claude Code — it writes the script and wires it up for you. Send another later to replace it.',
       steps: [

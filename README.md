@@ -65,7 +65,7 @@ Add a **category** by appending to `CATEGORIES` (id, title, description, `accent
 
 The **Detect installed** button generates a readable scan script (PowerShell on Windows, POSIX sh on macOS/Linux). The user pastes it into their terminal once; it checks each tool (PATH lookup, install-dir existence, Windows Store package, MCP servers via `~/.claude.json`, Claude Code plugins via `~/.claude/settings.json`) and reports back — the page polls and ticks the checkboxes live. The modal stays deliberately simple: one line saying what's covered; the script itself, with a comment per check, is the full transparency artifact. Only per-project steps (scaffolding, doctor runs, team prompts) can't be scanned.
 
-**Privacy:** the only data that leaves the machine is a one-time pairing code, the platform id (e.g. `mac-arm`), and the ids of tools found. Codes are single-use and expire after 10 minutes; the relay stores results at most that long.
+**Privacy:** the only data that leaves the machine is a one-time pairing code, the platform id (e.g. `mac-arm`), and the ids of tools found. Codes are single-use; the relay stores a result for at most 10 minutes.
 
 Detection specs live in `src/lib/detect.ts` (`DETECT_SPECS` — separate from `tools.ts` on purpose). Tools without a spec (per-project prompts) are simply not scanned.
 

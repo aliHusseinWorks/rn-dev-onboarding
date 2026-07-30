@@ -13,16 +13,26 @@ Despite the repo name, this is **not a React Native mobile app**. It is a single
 5. **MINIMAL DIFFS** — touch the fewest files and lines needed. Never reformat or reorganize code you didn't need to change.
 6. **NEVER COMMIT OR PUSH UNPROMPTED** — no git commit, push, branch creation, or PR unless the user explicitly asks in that session. Asking once does not grant it for later. Never use `--force` or rewrite history.
 
+What rules 2 and 3 mean concretely — TypeScript, naming, imports, structure,
+comments — is `.claude/rules/code-style.md`; the trust-boundary invariants are
+`.claude/rules/security.md`. Claude Code loads both on its own when you touch a
+file they cover, so they are not restated here or in `docs/ARCHITECTURE.md`.
+`.claude/settings.json` enforces the parts that shouldn't depend on good
+behaviour: history rewrites and non-pnpm installs are denied, editing an
+existing `docs/decisions/` file asks first, and finishing a session that touched
+`src/` or `functions/` without a `CHANGELOG.md` line for today is blocked
+([0030](docs/decisions/0030-conventions-as-rules-and-hooks.md)).
+
 ## Docs contract — read before / update after
 
 **Read before:**
 - Any task: check `docs/TODO.md` for parked items touching your area.
-- Writing code, adding a module, or choosing a library/pattern: read `docs/ARCHITECTURE.md` (structure, stack, "when you need X use Y" table, code conventions).
+- Writing code, adding a module, or choosing a library/pattern: read `docs/ARCHITECTURE.md` (structure, stack, "when you need X use Y" table).
 - Revisiting or contradicting a past choice: check `docs/decisions/` first.
 
 **Update after (same session, before finishing):**
 - Shipped a feature/fix → one line in `docs/CHANGELOG.md` under today's `## YYYY-MM-DD` heading, adding it if today has none.
-- Made a decision with the user (chose between approaches, rejected an option) → new numbered file in `docs/decisions/`; never edit old ones, supersede them.
+- Made a decision with the user (chose between approaches, rejected an option) → new numbered file in `docs/decisions/`; never edit old ones, supersede them. Never delete one either, including when the change it records is reverted — flip its status to `rejected` and keep the reasoning, or the next session re-litigates it from zero ([0027](docs/decisions/0027-no-code-index-neither-lsp-nor-rag.md)).
 - Deferred an idea or left a known gap → add it to `docs/TODO.md`; tick items you completed.
 - Changed structure or stack → update `docs/ARCHITECTURE.md`.
 - Added/removed/edited a tool in `src/lib/tools.ts` → the change must ripple everywhere it's consumed: `DETECT_SPECS` in `src/lib/detect.ts` (a missing spec silently lists the tool as unscannable), and sanity-check the derived surfaces (AI-setup prompt, detect scan) still say the right thing — they generate from `tools.ts`, but notes/prereqs/needles are per-tool by hand.

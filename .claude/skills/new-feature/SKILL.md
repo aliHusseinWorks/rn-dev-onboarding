@@ -1,9 +1,12 @@
 ---
-description: Plan a feature around existing code, confirm the plan, then implement via the skills.
+name: new-feature
+description: Plan a feature around existing code, confirm the plan, then implement via the skills. Use whenever adding a capability, card, section, or modal rather than fixing one.
 argument-hint: <feature description>
 ---
 
-Implement a new feature in this repo: $ARGUMENTS
+# Adding a feature in this repo
+
+The feature: $ARGUMENTS
 
 Follow CLAUDE.md's six rules throughout. Work in three stages:
 

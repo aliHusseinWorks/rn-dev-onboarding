@@ -142,7 +142,6 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
     linuxPaths: ['~/.local/bin/claude'],
   },
   herdr: { bins: ['herdr'] },
-  uv: { bins: ['uv'] },
   fastlane: { bins: ['fastlane'] },
   superpowers: { claudePlugin: 'superpowers@' },
   ponytail: { claudePlugin: 'ponytail@' },
@@ -230,6 +229,38 @@ export function detectGroups(platform: PlatformId): DetectGroup[] {
     })
   }
   return groups
+}
+
+// What a scan result does to the checklist, and the pre-scan state of every
+// scanned tool so Undo can replay it verbatim.
+export interface Applied {
+  found: string[]
+  notFound: string[]
+  // Platform id the scan actually ran on, when it differs from the page.
+  mismatch: string | null
+  before: { on: string[]; off: string[] }
+  undone: boolean
+}
+
+export function planApply(
+  report: { platform: string; found: string[] },
+  platform: PlatformId,
+  installed: Record<string, boolean>,
+): Applied {
+  const ids = detectGroups(platform).flatMap((g) => g.tools.map((t) => t.id))
+  // Whitelist against our own scan list — relay/paste data never writes
+  // arbitrary ids into localStorage.
+  const found = report.found.filter((id) => ids.includes(id))
+  const mismatch = report.platform !== platform
+  return {
+    found,
+    // A scan from another platform says nothing about this checklist, so it
+    // ticks what it found and clears nothing.
+    notFound: mismatch ? [] : ids.filter((id) => !found.includes(id)),
+    mismatch: mismatch ? report.platform : null,
+    before: { on: ids.filter((id) => installed[id]), off: ids.filter((id) => !installed[id]) },
+    undone: false,
+  }
 }
 
 // Pull the RN-ONBOARD/1 line out of whatever was pasted (possibly the whole

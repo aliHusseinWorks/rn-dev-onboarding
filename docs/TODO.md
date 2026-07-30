@@ -42,6 +42,13 @@ this file exists only because this repo has no board.
       Left out of [0028](decisions/0028-statusline-card-via-slash-command.md)
       rather than shipped untested; worth 30 seconds to confirm on a branch with
       an open Bitbucket PR, and worth a fourth profile if it does populate.
+- [ ] Remote Control's docs say a network outage longer than ~10 minutes times
+      the session out and exits the process. That paragraph is written for server
+      mode; unverified for the interactive `--remote-control` session the AI setup
+      box now offers ([0031](decisions/0031-remote-control-is-an-optional-line-in-the-ai-setup.md)),
+      where a process exit would abandon a half-finished install. Worth one
+      deliberate test — pull the network for 12 minutes mid-run — rather than a
+      redesign, since a 10-minute outage fails the installs anyway.
 - [ ] Verify Zoho Cliq's Windows install dir (`detect.ts` guesses
       `$env:LOCALAPPDATA\Programs\zoho-cliq`) on a machine that has it.
 - [ ] herdr's detect spec (`bins: ['herdr']`) can't see whether the Claude
@@ -100,10 +107,12 @@ this file exists only because this repo has no board.
       both generators. Worth a guard, or a check over `DETECT_SPECS`, before a
       value ever comes from anywhere but this repo.
 - [ ] Detect's Undo ([0013](decisions/0013-detect-applies-whole-result-with-undo.md))
-      lives in component state, so closing the modal or reloading loses it and a
-      wrong clear becomes permanent. Fine while a scan is something you watch
-      land, but if anyone hits that, the snapshot belongs in localStorage next
-      to `rn-onboard:installed`.
+      survives closing the modal now that the snapshot lives in `App`
+      ([0033](decisions/0033-detect-session-lives-in-app-and-codes-dont-expire.md)),
+      but a reload still loses it — along with the pairing session, which orphans
+      a script already copied. Both would want `localStorage`, which
+      `.claude/rules/security.md` currently scopes to tool ids, the platform
+      choice and the version cache; widening it is the decision to make first.
 - [x] Click-through of the live detect flow in a real browser. Headless Chrome
       over CDP against `wrangler pages dev dist`: opened the modal, POSTed a
       report under the rendered code, watched the poll tick the checklist with
@@ -118,6 +127,18 @@ this file exists only because this repo has no board.
       the generic Terminal icon; stamping one needs `osascript`/JXA + `sips` (or
       an `.app` bundle) and can't be tested from Windows. The icon field
       self-hides there, so nothing misleads the user in the meantime.
+- [ ] The Stop hook in `.claude/hooks/guard.mjs` only asks whether *anything* is
+      logged under today's heading, so once one line exists every later session
+      that day passes for free. Catching per-change gaps means knowing which
+      files this session touched, which is the transcript rather than mtimes —
+      more machinery than the gap is worth, but that's the ceiling
+      ([0030](decisions/0030-conventions-as-rules-and-hooks.md)).
+- [ ] A `permissions.deny` command rule is a prefix, so a flag that can also sit
+      later in the line escapes it — `Bash(git push --force *)` catches
+      `git push --force origin main` but not `git push origin --force`. Closing
+      that means a PreToolUse hook reading the command body, which is the same
+      `guard.mjs` with a `Bash` matcher; worth it only if a session is ever
+      observed getting through ([0030](decisions/0030-conventions-as-rules-and-hooks.md)).
 - [x] herdr launcher — the whole icon path is verified end to end. `iconImage.ts`
       ran in headless Chrome on a real photo: 4-frame `.ico` (16/32/48/64, PNG
       payloads, dimensions matching their directory entries), Windows loads every

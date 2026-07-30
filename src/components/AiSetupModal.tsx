@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Check } from 'lucide-react'
+import { Check, Info } from 'lucide-react'
 import { aiSetupGroups, generateAiSetup } from '../lib/aiSetup'
 import { PLATFORM_INFO, type PlatformId } from '../lib/platform'
 import { CommandBlock } from './CommandBlock'
 import { Modal } from './Modal'
+import { Tooltip } from './Tooltip'
 
 interface Props {
   platform: PlatformId
@@ -14,8 +15,17 @@ interface Props {
   onClose: () => void
 }
 
+const LAUNCH = 'claude --dangerously-skip-permissions'
+
+const FLAG_TIP =
+  'Without it, Claude Code asks before every command and you approve each step yourself, so you can’t walk away. Neither mode can absorb your OS’s own prompts.'
+
+const REMOTE_TIP =
+  'Adds --remote-control, which also opens the session at claude.ai/code and in the Claude app. Send /config once and turn on “Push when actions required” so it can notify you there.'
+
 export function AiSetupModal({ platform, installed, onClose }: Props) {
   const [excluded, setExcluded] = useState<ReadonlySet<string>>(new Set())
+  const [remote, setRemote] = useState(false)
   const groups = useMemo(() => aiSetupGroups(platform), [platform])
   const done = useMemo(() => new Set(Object.keys(installed).filter((id) => installed[id])), [installed])
   const { bootstrap, prompt, asks, handsOn } = useMemo(
@@ -77,7 +87,7 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
   const steps = [
     ...(hasClaude ? [] : [{ command: bootstrap, note: 'Install Claude Code — the only manual install.' }]),
     {
-      command: 'claude --dangerously-skip-permissions',
+      command: remote ? `${LAUNCH} --remote-control` : LAUNCH,
       note: hasClaude
         ? 'Start Claude Code, then paste the prompt below.'
         : 'Open a NEW terminal (so PATH is fresh), start Claude Code, then paste the prompt below.',
@@ -116,19 +126,48 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
                 <span>{step.note}</span>
               </div>
               <CommandBlock command={step.command} label="Copy" />
+              {i === steps.length - 1 && (
+                <div className="flex items-center gap-1.5">
+                  <label className="flex cursor-pointer items-center gap-1.5 text-xs text-fg-muted hover:text-fg">
+                    <input
+                      type="checkbox"
+                      checked={remote}
+                      onChange={() => setRemote((v) => !v)}
+                      className="accent-accent"
+                    />
+                    Ping my phone if it needs me
+                  </label>
+                  <Tooltip label={REMOTE_TIP}>
+                    <button
+                      type="button"
+                      aria-label="Remote control info"
+                      className="text-fg-subtle transition-colors hover:text-fg cursor-pointer"
+                    >
+                      <Info size={13} />
+                    </button>
+                  </Tooltip>
+                </div>
+              )}
             </div>
           ))}
         {!nothingLeft && (
-          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+          <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
             <p className="max-w-lg text-xs leading-relaxed text-fg-muted">
-              <span className="font-mono text-fg">--dangerously-skip-permissions</span> is what makes it unattended —
-              Claude Code stops asking before every command, and does mean it runs the whole list without checking with
-              you. Drop the flag to approve each step instead. Either way your OS still asks for itself —{' '}
+              <span className="font-mono text-fg">--dangerously-skip-permissions</span> is what makes it unattended: it
+              runs the whole list without checking with you. Your OS still asks for itself —{' '}
               {PLATFORM_INFO[platform].os === 'win'
-                ? 'UAC prompts sit on a dimmed screen and auto-cancel after ~2 minutes'
-                : 'sudo asks for your password'}{' '}
-              — which is what the second line above is for.
+                ? 'UAC prompts sit on a dimmed screen and auto-cancel after ~2 minutes.'
+                : 'sudo asks for your password.'}
             </p>
+            <Tooltip label={FLAG_TIP}>
+              <button
+                type="button"
+                aria-label="Skip-permissions flag info"
+                className="text-fg-subtle transition-colors hover:text-fg cursor-pointer"
+              >
+                <Info size={13} />
+              </button>
+            </Tooltip>
           </div>
         )}
 
