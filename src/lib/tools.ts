@@ -813,7 +813,7 @@ export const TOOLS: Tool[] = [
     id: 'herdr',
     category: 'ai',
     name: 'herdr',
-    description: 'Run & monitor all your coding agents (tmux-style).',
+    description: 'A terminal multiplexer for AI coding agents.',
     icon: 'layout-grid',
     order: 2,
     docsUrl: 'https://github.com/ogulcancelik/herdr',
