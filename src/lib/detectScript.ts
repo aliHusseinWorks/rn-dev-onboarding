@@ -144,6 +144,11 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
       `try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12; Invoke-RestMethod -Method Post -Uri '${DETECT_ENDPOINT}/report/${code}' -ContentType 'application/json' -Body $body -TimeoutSec 10 | Out-Null; '${REPORT_OK_MSG}' } catch { '${REPORT_FAIL_MSG}' }`,
     )
   }
+  // `exit` closes the console itself, not just the script — the results are the
+  // whole point of the run, so the window holds until it is dismissed rather
+  // than vanishing or being left behind. The prompt is written separately
+  // because Read-Host appends ': ' to one it is given.
+  lines.push('', `Write-Host 'Press Enter to close...' -NoNewline; Read-Host | Out-Null; exit`)
   return lines.join('\n')
 }
 
