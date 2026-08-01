@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronsDownUp, ChevronsUpDown, ExternalLink, ScanSearch, Sparkles, Terminal } from 'lucide-react'
+import { ChevronsDownUp, ChevronsUpDown, ExternalLink, Info, ScanSearch, Sparkles, Terminal } from 'lucide-react'
 import { AiSetupModal } from './components/AiSetupModal'
 import { CategoryChips } from './components/CategoryChips'
 import { CategoryRail } from './components/CategoryRail'
@@ -12,6 +12,7 @@ import { PlatformBanner } from './components/PlatformBanner'
 import { ProgressBar } from './components/ProgressBar'
 import { ScrollTop } from './components/ScrollTop'
 import { SearchBar } from './components/SearchBar'
+import { SegmentedControl } from './components/SegmentedControl'
 import { ThemeToggle } from './components/ThemeToggle'
 import { Tooltip } from './components/Tooltip'
 import { isAvailable, isCheckable, matchesQuery } from './lib/commands'
@@ -24,6 +25,7 @@ import { useDetectSession, type DetectReport } from './lib/useDetectSession'
 import { useLocalStorage } from './lib/useLocalStorage'
 
 const PLATFORM_KEY = 'rn-onboard:platform'
+const YEAR = new Date().getFullYear()
 
 function readSavedPlatform(): PlatformId | null {
   const saved = localStorage.getItem(PLATFORM_KEY)
@@ -132,8 +134,17 @@ export function App() {
   const categoryFor = (id: string) => CATEGORIES.find((c) => c.id === id)
   const hasResults = TOOLS.some((t) => matchesQuery(t, categoryFor(t.category), query))
 
+  // A choice field opens on its first option — with no value nothing matches
+  // `whenFieldIs` and the modal would show only the steps common to every mode.
   const openModal = (toolId: string) => {
-    setFieldValues({})
+    const fields = TOOLS.find((t) => t.id === toolId)?.modal?.fields ?? []
+    setFieldValues(
+      Object.fromEntries(
+        fields.flatMap((field) =>
+          field.kind === 'choice' && field.options?.[0] ? [[field.key, field.options[0].value]] : [],
+        ),
+      ),
+    )
     setModalToolId(toolId)
   }
 
@@ -151,21 +162,37 @@ export function App() {
   })
 
   const isSet = (key: string) => Boolean(fieldValues[key]?.trim())
+  const inMode = (when?: Record<string, string>) =>
+    !when || Object.entries(when).every(([key, value]) => fieldValues[key] === value)
+  const missingRequired = (modalTool?.modal?.requireFields ?? []).filter((key) => !isSet(key))
   const modalSteps = platformSteps.filter(
     (step) =>
-      (!step.whenFieldSet || isSet(step.whenFieldSet)) && (!step.whenFieldUnset || !isSet(step.whenFieldUnset)),
+      (!step.whenFieldSet || isSet(step.whenFieldSet)) &&
+      (!step.whenFieldUnset || !isSet(step.whenFieldUnset)) &&
+      inMode(step.whenFieldIs) &&
+      missingRequired.length === 0,
   )
 
   // A field this platform can't act on isn't shown (e.g. the icon field on macOS).
   // Either its token is substituted somewhere, or some step exists to handle it
   // once filled — measured over every step, so filling one can't hide its own field.
+  // A choice field substitutes nothing, so it answers to `whenFieldIs` alone.
   const modalFields = (modalTool?.modal?.fields ?? []).filter((field) => {
+    if (!inMode(field.whenFieldIs)) return false
+    if (field.kind === 'choice') return true
     const token = `{${field.key}}`
     return (
       platformSteps.some((s) => s.command.includes(token) || s.whenFieldSet === field.key) ||
       modalTool?.modal?.prompt?.includes(token)
     )
   })
+  let stepNumber = 0
+  const numberedSteps = modalSteps.map((step) => ({ step, number: step.alt ? null : ++stepNumber }))
+  const choiceFields = missingRequired.length === 0 ? modalFields.filter((f) => f.kind === 'choice') : []
+  const inputFields = modalFields.filter((f) => f.kind !== 'choice')
+  const missingLabels = missingRequired
+    .map((key) => modalTool?.modal?.fields?.find((f) => f.key === key)?.label ?? key)
+    .join(' and ')
 
   const allCollapsed = sortedCategories.every((c) => collapsed[c.id])
   const toggleAllSections = () =>
@@ -295,9 +322,25 @@ export function App() {
       </main>
 
       <footer className="border-t border-border">
-        <div className="px-4 py-6 text-xs text-fg-subtle sm:px-6 xl:px-8">
-          Progress is saved in your browser. Commands install the latest version for{' '}
-          <span className="font-mono text-fg-muted">{PLATFORM_INFO[platform].label}</span> unless a version is pinned.
+        {/* Right padding is per-side, not `px-*`: `ScrollTop` is fixed over the
+            last 60px of the viewport, and a right-aligned footer sits under it.
+            Written as `pr-*` so the wider breakpoints' `pl-*` can't reset it. */}
+        <div className="flex flex-col gap-3 py-6 pl-4 pr-4 text-xs text-fg-subtle sm:flex-row sm:items-center sm:justify-between sm:pl-6 sm:pr-20 xl:pl-8">
+          <p>
+            Progress is saved in your browser. Commands install the latest version for{' '}
+            <span className="font-mono text-fg-muted">{PLATFORM_INFO[platform].label}</span> unless a version is pinned.
+          </p>
+          <p className="shrink-0">
+            © {YEAR}{' '}
+            <a
+              href="https://github.com/aliHusseinWorks"
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-fg-muted transition-colors hover:text-fg cursor-pointer"
+            >
+              Ali Hussein
+            </a>
+          </p>
         </div>
       </footer>
 
@@ -329,9 +372,9 @@ export function App() {
                 {modalTool.modal.prereq}
               </p>
             )}
-            {modalFields.length > 0 && (
+            {inputFields.length > 0 && (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {modalFields.map((field) =>
+                {inputFields.map((field) =>
                   field.kind === 'image' ? (
                     <ImageDropField
                       key={field.key}
@@ -356,14 +399,63 @@ export function App() {
                 )}
               </div>
             )}
-            {modalSteps.map((step, i) => (
-              <div key={i} className="flex flex-col gap-1.5">
+            {choiceFields.length > 0 && (
+              <div className="flex flex-wrap gap-4">
+                {choiceFields.map((field) => (
+                  <div key={field.key} className="flex flex-col gap-1">
+                    <span id={`choice-${field.key}-label`} className="text-xs font-medium text-fg-subtle">
+                      {field.label}
+                    </span>
+                    <SegmentedControl
+                      name={field.key}
+                      labelledBy={`choice-${field.key}-label`}
+                      value={fieldValues[field.key] ?? ''}
+                      options={field.options ?? []}
+                      onChange={(value) => setFieldValues((prev) => ({ ...prev, [field.key]: value }))}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Keyed on the unfilled command, not the index: a mode switch swaps
+                the whole list, and an index key would hand a `CommandBlock` its
+                predecessor's "Copied!" state. Tokens are filled at render, so
+                this stays stable while the field is typed into. */}
+            {numberedSteps.map(({ step, number }) => (
+              <div key={step.command} className={`flex flex-col gap-1.5 ${number === null ? 'pl-4' : ''}`}>
                 <div className="flex items-center gap-2 text-xs text-fg-subtle">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted font-mono text-[11px] text-fg-muted">
-                    {i + 1}
-                  </span>
-                  {step.note && <span>{step.note}</span>}
+                  {number === null ? (
+                    <span aria-hidden className="flex h-5 w-5 shrink-0 items-center justify-center text-fg-subtle">
+                      •
+                    </span>
+                  ) : (
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-[11px] text-fg-muted">
+                      {number}
+                    </span>
+                  )}
+                  {step.note && <span>{renderTokens(step.note, modalFields, fieldValues)}</span>}
+                  {/* A step carrying a tooltip needs a short note: the panel is
+                      centred on this icon and `Modal`'s content box is
+                      overflow-hidden on the x axis, so a note long enough to push
+                      the icon near either edge gets the panel cut rather than
+                      repositioned. */}
+                  {step.tooltip && (
+                    <Tooltip label={step.tooltip} className="shrink-0">
+                      <button
+                        type="button"
+                        aria-label="More detail"
+                        className="cursor-help text-fg-subtle transition-colors hover:text-fg"
+                      >
+                        <Info size={13} />
+                      </button>
+                    </Tooltip>
+                  )}
                 </div>
+                {step.body && (
+                  <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[13px] leading-relaxed text-fg-muted">
+                    {renderTokens(step.body, modalFields, fieldValues)}
+                  </p>
+                )}
                 {step.manual ? (
                   <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[13px] leading-relaxed text-fg-muted">
                     {renderTokens(step.command, modalFields, fieldValues)}
@@ -377,11 +469,21 @@ export function App() {
                       step.shellQuoted ? shellSingleQuote(platform) : undefined,
                     )}
                     display={renderTokens(step.command, modalFields, fieldValues)}
-                    label="Copy"
+                    label={step.label ?? 'Copy'}
                     multiline={step.multiline}
                     download={step.download}
                     filename={step.filename}
                   />
+                )}
+                {step.link && (
+                  <a
+                    href={step.link.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"
+                  >
+                    <ExternalLink size={13} /> {step.link.label}
+                  </a>
                 )}
                 {step.preview && (
                   <pre className="thin-scroll overflow-x-auto rounded-lg border border-border bg-muted/30 px-3 py-2 font-mono text-[11px] leading-relaxed text-fg-muted">
@@ -390,7 +492,12 @@ export function App() {
                 )}
               </div>
             ))}
-            {modalTool.modal.prompt && (
+            {missingRequired.length > 0 && (
+              <p className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5 text-xs text-destructive">
+                Fill in {missingLabels} — every command here is built from it.
+              </p>
+            )}
+            {modalTool.modal.prompt && missingRequired.length === 0 && (
               <CommandBlock
                 command={fillTokens(modalTool.modal.prompt, modalFields, fieldValues)}
                 display={renderTokens(modalTool.modal.prompt, modalFields, fieldValues)}

@@ -1,5 +1,5 @@
 import type { PlatformId } from './platform'
-import { PLUGIN_FILL_PROMPT, RUN_DOCS_PROMPT, SETUP_PROMPT } from './setupPrompt'
+import { PLUGIN_BUILD_PROMPT, RUN_DOCS_PROMPT, SETUP_PROMPT } from './setupPrompt'
 import type { VersionSource } from './versions'
 
 export interface ToolAction {
@@ -16,6 +16,14 @@ export interface ModalStep {
   // true = a GUI/human instruction, not a shell command (e.g. "paste the key
   // into Bitbucket"). The AI setup prompt marks these as [HUMAN] steps.
   manual?: boolean
+  // One of several ways to do the step above, not a step of its own: bulleted
+  // rather than numbered, and it doesn't advance the count. Numbered
+  // alternatives read as a sequence you work through.
+  alt?: boolean
+  // Prose above the command, for a step that has to explain itself before
+  // handing over a value. `manual` can't: it turns the command itself into the
+  // prose, so a step needing both would have to become two.
+  body?: string
   // true = reference material for later (per-repo usage), not part of machine
   // setup — shown in the modal but excluded from the AI setup prompt.
   docsOnly?: boolean
@@ -31,6 +39,18 @@ export interface ModalStep {
   // so a step can offer a different route once something is filled in.
   whenFieldSet?: string
   whenFieldUnset?: string
+  // Shown only while every listed field holds the given value — how a 'choice'
+  // field splits one modal into modes.
+  whenFieldIs?: Record<string, string>
+  // Copy-button label, for a step whose command is a whole prompt rather than a
+  // line to paste. Defaults to 'Copy'.
+  label?: string
+  // Detail behind an info icon next to the note — the caveat a reader needs
+  // only once, kept out of the step's own line.
+  tooltip?: string
+  // Somewhere the reader has to go in a browser to carry the step out, for the
+  // steps a terminal can't complete.
+  link?: { href: string; label: string }
   // A sample of what the command produces, rendered under it. For steps whose
   // output is the point — pick-one alternatives you can only choose between by
   // seeing them. Newlines render as separate lines.
@@ -46,7 +66,14 @@ export interface ModalField {
   placeholder?: string
   // 'image' = an image drop/picker instead of a text box; the value is the
   // base64 of an icon converted in the browser, wrapped when filled in.
-  kind?: 'text' | 'image'
+  // 'choice' = a segmented control over `options`. Its value is never
+  // substituted into a command, so it stays visible on its own terms rather
+  // than through the token check every other field is filtered by.
+  kind?: 'text' | 'image' | 'choice'
+  options?: { value: string; label: string }[]
+  // A choice field can gate another, so the protocol picker only appears in the
+  // mode whose commands carry a URL.
+  whenFieldIs?: Record<string, string>
 }
 
 export interface ToolModal {
@@ -56,6 +83,10 @@ export interface ToolModal {
   steps?: ModalStep[]
   prompt?: string
   copyLabel?: string
+  // Field keys that must hold a value before anything is copyable. Commands
+  // built around an unfilled token are worse than no command — they look
+  // runnable and quietly aren't.
+  requireFields?: string[]
 }
 
 export interface Tool {
@@ -97,7 +128,7 @@ export const CATEGORIES: Category[] = [
   { id: 'apps', title: 'Desktop Apps', description: 'Editors, IDEs, debuggers, and team chat.', accent: '#a78bfa', order: 2 },
   { id: 'ai', title: 'AI Tools & Claude Code', description: 'Agentic CLIs, prerequisites, and Claude Code plugins.', accent: '#fbbf24', order: 3 },
   { id: 'mcp', title: 'MCP Servers', description: 'Connect Claude Code to your tools with `claude mcp add`.', accent: '#2dd4bf', order: 4 },
-  { id: 'project', title: 'Project Setup', description: 'Scaffold a Claude workspace in a repo, and tune Claude Code itself.', accent: '#f472b6', order: 5, checkable: false },
+  { id: 'project', title: 'Project Setup', description: 'Scaffold a Claude workspace in a repo, and the prompts that keep it current.', accent: '#f472b6', order: 5, checkable: false },
   { id: 'rn', title: 'React Native Setup', description: 'Create a project and verify the toolchain.', accent: '#61dafb', order: 6, checkable: false },
 ]
 
@@ -735,6 +766,36 @@ export const TOOLS: Tool[] = [
           note: 'In a NEW terminal. The first run opens a browser sign-in; approve it and you stay logged in.',
           manual: true,
         },
+        {
+          command:
+            'A status line keeps the model, context left and spend at the bottom of every session. Send one of the prompts below and Claude Code writes the script and wires it up; send another later to replace it.',
+          note: 'Optional — pick one.',
+          manual: true,
+          tooltip:
+            'The rate-limit figures need a Pro or Max plan and stay blank until the session’s first response — always blank on API billing. Permission mode can’t be shown at all; Claude Code draws that in its own footer.',
+          link: { href: 'https://code.claude.com/docs/en/statusline', label: 'Status line docs' },
+        },
+        {
+          command:
+            '/statusline two lines. First: repo name and git branch, model display name, effort level, context used percentage. Second: 5-hour and weekly rate limit percentages each with time until reset, session cost in USD, lines added and removed, session duration. Add a "fast" flag on line one only when fast mode is on. Do not print the context window size separately — the model display name already carries it.',
+          note: 'Recommended — the bar we run.',
+          alt: true,
+          preview:
+            'rn-dev-onboarding:main │ Opus 5 (1M context) │ effort max │ ctx 30%\nsession 9% (4h31m) │ week 15% (6d13h) │ $16.57 │ +237 -25 │ 2h45m',
+        },
+        {
+          command:
+            '/statusline one line: repo name and git branch, model display name, effort level, context used percentage, lines added and removed. Cache the git lookup per session.',
+          note: 'One line. Keeps where you are and what you’ve changed; loses the usage limits, cost and session clock.',
+          alt: true,
+          preview: 'rn-dev-onboarding:main │ Opus 5 │ effort max │ ctx 30% │ +237 -25',
+        },
+        {
+          command: '/statusline one line, no git: model display name, effort level, context used percentage.',
+          note: 'One line, and the quickest to draw — no git lookup, so no branch either.',
+          alt: true,
+          preview: 'Opus 5 │ effort max │ ctx 30%',
+        },
       ],
     },
     actions: {
@@ -1046,41 +1107,9 @@ export const TOOLS: Tool[] = [
     order: 1,
     modal: {
       intro: 'One-time per repo. If the repo you cloned already has a .claude/ folder committed, SKIP this — you already got the setup with the clone. Otherwise, paste this into Claude Code inside the project: it studies the codebase, then sets up our workspace so AI contributions match the hand-written style — rules, hooks, skills, agents and the docs system.',
+      prereq: 'Repo cloned.',
       prompt: SETUP_PROMPT,
       copyLabel: 'Copy prompt',
-    },
-  },
-  {
-    id: 'statusline',
-    category: 'project',
-    name: 'Claude Code statusline',
-    description: 'Model, context and spend, always visible.',
-    icon: 'gauge',
-    order: 2,
-    docsUrl: 'https://code.claude.com/docs/en/statusline',
-    note: 'Two things no profile can show: permission mode, which Claude Code draws in its own footer below, and rate limits before the session\'s first API response — blank throughout on API billing.',
-    modal: {
-      intro: 'Pick ONE and send it as a prompt in Claude Code — it writes the script and wires it up for you. Send another later to replace it.',
-      steps: [
-        {
-          command:
-            '/statusline two lines. First: repo name and git branch, model display name, effort level, context used percentage. Second: 5-hour and weekly rate limit percentages each with time until reset, session cost in USD, lines added and removed, session duration. Add a "fast" flag on line one only when fast mode is on. Do not print the context window size separately — the model display name already carries it.',
-          note: 'Recommended — the bar we run. The 5-hour and weekly numbers need a Pro or Max plan.',
-          preview:
-            'rn-dev-onboarding:main │ Opus 5 (1M context) │ effort max │ ctx 30%\nsession 9% (4h31m) │ week 15% (6d13h) │ $16.57 │ +237 -25 │ 2h45m',
-        },
-        {
-          command:
-            '/statusline one line: repo name and git branch, model display name, effort level, context used percentage, lines added and removed. Cache the git lookup per session.',
-          note: 'One line. Keeps where you are and what you\'ve changed; loses the usage limits, cost and session clock.',
-          preview: 'rn-dev-onboarding:main │ Opus 5 │ effort max │ ctx 30% │ +237 -25',
-        },
-        {
-          command: '/statusline one line, no git: model display name, effort level, context used percentage.',
-          note: 'One line, and the quickest to draw — no git lookup, so no branch either.',
-          preview: 'Opus 5 │ effort max │ ctx 30%',
-        },
-      ],
     },
   },
   {
@@ -1089,7 +1118,7 @@ export const TOOLS: Tool[] = [
     name: 'Run-the-app docs',
     description: 'Generate docs/RUNNING.md: clone → deps → emulator or device.',
     icon: 'rocket',
-    order: 3,
+    order: 2,
     modal: {
       intro: 'Paste this into Claude Code inside a cloned repo. It reads the repo and writes docs/RUNNING.md with the exact steps to run the app — dependencies, emulator/simulator, and physical devices.',
       prereq: 'Repo cloned.',
@@ -1101,26 +1130,103 @@ export const TOOLS: Tool[] = [
     id: 'team-plugin',
     category: 'project',
     name: 'Team plugin',
-    description: 'Shared agents, skills & hooks — install it, or author it once.',
+    description: 'One repo of shared guards — created once, installed by everyone.',
     icon: 'package-2',
-    order: 4,
-    docsUrl: 'https://docs.claude.com/en/docs/claude-code/overview',
+    order: 3,
+    docsUrl: 'https://code.claude.com/docs/en/plugin-marketplaces',
+    note: 'Lives on your machine, not in your repos — a plugin never writes a file into the project it works on.',
     modal: {
-      intro: 'Our shared RN tooling. Every dev: run steps 1–2 inside Claude Code (each command as its own prompt). Plugin author only: steps 3–5 scaffold and publish the plugin in the first place.',
-      prereq: 'Fill both fields below — they prefill the commands and the prompt.',
+      intro: 'One repo named after your company, holding a baseline plugin every developer installs plus a plugin per stack. Create is for the one person who sets it up; Install is for everyone else.',
+      requireFields: ['company'],
       fields: [
-        { key: 'repo', label: 'Plugin repo (org/repo)', placeholder: 'yourorg/rn-team-tools' },
-        { key: 'name', label: 'Plugin name', placeholder: 'rn-team-tools' },
+        {
+          key: 'mode',
+          label: 'I want to',
+          kind: 'choice',
+          options: [
+            { value: 'create', label: 'Create' },
+            { value: 'install', label: 'Install' },
+          ],
+        },
+        {
+          key: 'protocol',
+          label: 'Clone over',
+          kind: 'choice',
+          whenFieldIs: { mode: 'install' },
+          options: [
+            { value: 'https', label: 'HTTPS' },
+            { value: 'ssh', label: 'SSH' },
+          ],
+        },
+        { key: 'company', label: 'Company slug', placeholder: 'acme' },
       ],
       steps: [
-        { command: '/plugin marketplace add {repo}', note: 'Every dev — send as its own prompt.' },
-        { command: '/plugin install {name}@{name}', note: 'Then a separate prompt; restart Claude Code after.' },
-        { command: 'claude plugin init {name} --with skills agents hooks', note: 'Author only from here — scaffolds under ~/.claude/skills.' },
-        { command: 'cd ~/.claude/skills/{name} && claude', note: 'Open Claude Code inside the plugin folder, then paste the fill prompt below. It asks 3 questions, then writes generic agents, skills, and hooks.' },
-        { command: 'git init -b main && git add -A && git commit -m "feat: team plugin" && git push', note: 'Push to a new git repo — then every dev installs it with steps 1–2.' },
+        {
+          command:
+            'Create an empty private repo named {company}-claude. One person does this, once — everyone else only needs the Install side.',
+          note: 'On GitHub, before anything else.',
+          manual: true,
+          whenFieldIs: { mode: 'create' },
+          tooltip: 'Cloned in plaintext onto every machine. Keep tokens and internal names out of it.',
+        },
+        {
+          command: 'git clone https://github.com/{company}/{company}-claude.git && cd {company}-claude && claude',
+          note: 'Clone it and open Claude Code inside.',
+          whenFieldIs: { mode: 'create' },
+        },
+        {
+          command: PLUGIN_BUILD_PROMPT,
+          note: 'Paste this. It asks one question, then writes the marketplace and the {company} plugin.',
+          label: 'Copy build prompt',
+          multiline: true,
+          download: true,
+          filename: 'plugin-build-prompt.md',
+          whenFieldIs: { mode: 'create' },
+        },
+        {
+          command: '/plugin marketplace add ./',
+          note: 'Try it locally before anyone else sees it — send as its own prompt.',
+          whenFieldIs: { mode: 'create' },
+        },
+        {
+          command: 'claude plugin details {company}@{company}-claude',
+          note: 'What it ships, and what it costs in tokens.',
+          whenFieldIs: { mode: 'create' },
+          tooltip: 'What a plugin loads on every message is paid for on every message, by everyone.',
+        },
+        {
+          command: 'git add -A && git commit -m "feat: {company} claude plugins" && git push',
+          note: 'Ship it. Adding a stack plugin later is one folder and one line in the marketplace file.',
+          whenFieldIs: { mode: 'create' },
+        },
+        {
+          note: 'Optional — Team and Enterprise only.',
+          body: 'An admin picks Add plugin → GitHub and pastes the repo below. Set it to install by default and every developer has it without running the Install commands; set it to required and they can’t uninstall it either. Left as available, they pick it out of the Browse plugins modal instead.',
+          command: '{company}/{company}-claude',
+          whenFieldIs: { mode: 'create' },
+          tooltip:
+            'Needs the Claude GitHub App installed on the repo, admin access to it, and Cowork and Skills enabled for the org.',
+          link: { href: 'https://claude.ai/admin-settings/plugins', label: 'Open Organization settings → Plugins' },
+        },
+        {
+          command: '/plugin marketplace add https://github.com/{company}/{company}-claude.git',
+          note: 'Send as its own prompt.',
+          whenFieldIs: { mode: 'install', protocol: 'https' },
+          tooltip: 'Uses the credential manager Git already installs, or gh auth login.',
+        },
+        {
+          command: '/plugin marketplace add {company}/{company}-claude',
+          note: 'Send as its own prompt.',
+          whenFieldIs: { mode: 'install', protocol: 'ssh' },
+          tooltip: 'Needs your key loaded in ssh-agent — Claude Code suppresses the prompts.',
+        },
+        {
+          command: '/plugin install {company}@{company}-claude',
+          note: 'Then your team’s: {company}-rn-mobile@{company}-claude. Restart after.',
+          whenFieldIs: { mode: 'install' },
+          tooltip: 'Team and Enterprise admins can push this org-wide from Organization settings instead.',
+        },
       ],
-      prompt: PLUGIN_FILL_PROMPT,
-      copyLabel: 'Copy fill prompt (author only)',
     },
   },
 ]

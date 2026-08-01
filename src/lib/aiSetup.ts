@@ -74,6 +74,7 @@ function emitTool(
 
   for (const step of tool.modal?.steps ?? []) {
     if (step.docsOnly) continue // per-repo reference, not machine setup
+    if (step.alt) continue // one of several ways to do the step above, so listing them all says "run all three"
     const raw = resolveStepCommand(step, platform)
     if (!raw) continue
     const command = askTokens(raw, fields, asked)

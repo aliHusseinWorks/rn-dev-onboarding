@@ -11,24 +11,45 @@ Cover, in order, with exact copy-pasteable commands:
 
 Keep it command-first and short — a checklist, not an essay. Do not modify any app code or config.`
 
-// Prompt for the "Fill the team plugin" card: paste into Claude Code inside a
-// plugin folder scaffolded by `claude plugin init --with skills agents hooks`.
-export const PLUGIN_FILL_PROMPT = `You are filling a freshly scaffolded Claude Code plugin (created with \`claude plugin init {name} --with skills agents hooks\`) with our React Native team's shared tooling. Everything you write MUST be generic — true for any React Native app this team builds. Never reference a specific repo's files, paths, theme names, or components.
+// Prompt for the "Team plugin" card, Create mode: paste into Claude Code inside
+// an empty repo that becomes the company's plugin marketplace.
+export const PLUGIN_BUILD_PROMPT = `You are turning this empty repository into {company}'s Claude Code plugin marketplace. The company slug is "{company}", so this repo is {company}-claude, the baseline plugin is named {company}, and stack plugins added later are {company}-rn-mobile, {company}-web, and so on.
 
-FIRST, ask me two short questions and wait for answers:
-1. Which styling approach does the team standardize on (StyleSheet.create / styled-components / NativeWind / no standard)?
-2. Any team-specific rules to encode (or "none")?
+FIRST, ask me one question and wait for the answer:
+Any company-specific rules to encode beyond the defaults below (or "none")?
 
-THEN fill the scaffolded stubs — nothing beyond them:
-- agents/code-reviewer.md — read-only agent that reviews diffs for React Native pitfalls (missing list keys, inline functions re-created every render, unhandled promise rejections, missing safe-area handling, hardcoded colors/spacing instead of the host app's theme, Platform-specific gotchas), security issues (secrets in code, unvalidated input at trust boundaries), and violations of the team rules from my answers.
-- agents/consistency-checker.md — read-only agent that compares new/changed code against neighboring files in the host repo and flags style drift, AI-style narration comments, logic duplicated from existing files, and unrequested extras.
-- skills/rn-component/SKILL.md — how this team writes components: reuse before create, match the neighboring code exactly, consume the host app's existing theme tokens (instruct Claude to locate them, never hardcode values), and the styling approach from my answer.
-- skills/rn-screen/SKILL.md — creating and registering a screen by first studying how existing screens in the host repo are registered (navigation typing, safe-area, params) and imitating that exactly.
-- skills/api-integration/SKILL.md — adding API calls only through the host repo's existing client and error-handling pattern; never a new fetch wrapper.
-- hooks/hooks.json — a PreToolUse Bash hook that blocks package-manager commands that don't match the HOST repo, deriving the right one at runtime from package.json's packageManager field (fallback: whichever lockfile exists — pnpm-lock.yaml / yarn.lock / package-lock.json). Never hardcode a manager: this plugin travels to repos that may differ from the team default. Plus a PostToolUse Edit|Write hook that runs the host repo's formatter only if one is configured.
-- .claude-plugin/plugin.json — fill in a one-line description.
+THEN create exactly this, and nothing else:
 
-The golden rule for every file: this plugin travels to many repos it has never seen, so write instructions that tell Claude to STUDY the host repo's existing patterns first and imitate them — encode behavior, not specifics. Keep each file short and imperative. Do not touch anything outside this plugin folder.`
+.claude-plugin/marketplace.json — name "{company}-claude", an owner object, and a plugins array whose one entry is { "name": "{company}", "source": "./{company}", "description": … }. A relative source keeps the plugin inside this repo, which is what lets a private marketplace work without a second repo anyone needs access to.
+{company}/.claude-plugin/plugin.json — name "{company}", version "0.1.0", a one-line description, and "hooks": "./hooks/hooks.json".
+{company}/hooks/hooks.json — wires the guards below.
+{company}/hooks/guard.mjs — ONE Node script that reads the hook JSON on stdin and switches on hook_event_name and the tool input. Node, not shell: this travels to Windows and macOS machines and jq is a given on neither.
+README.md — what this repo is, how a developer installs it, and how to add a stack plugin.
+
+NO skills and NO agents in the baseline. Everything universal is a hook; anything that needs a skill is stack-specific and belongs in a stack plugin, written when someone has real pain to encode rather than now.
+
+THE FIVE GUARDS
+1. Git sign-off — git commit and git push each ask for explicit approval, as two separate gates. Use permissionDecision "ask", not "deny": approval is exactly the thing that should be possible.
+2. Destructive git — deny git push --force, git push -f, git reset --hard, git commit --amend, and git rebase outright.
+3. Secret files — deny reading or editing .env and its variants, *.pem, id_rsa, and credentials.json. Never .env.example.
+4. Package manager — read the host repo's package.json packageManager field, else whichever lockfile exists (pnpm-lock.yaml / yarn.lock / package-lock.json), and deny the other managers whole. Never hardcode one: this plugin lands in repos that disagree with each other.
+5. Code style — inject the comment rules when a code file is about to be edited: comments only where a reader who knows the codebase would still be surprised; never narrate history, a fixed bug, or what the code used to do; no section banners, no emoji.
+
+HOW EVERY GUARD MUST BEHAVE
+- Narrow it with the "if" field so the script never runs when it cannot apply: "if": "Bash(git push *)", "if": "Edit(*.ts)". A command rule only wildcards with a space before the star — Bash(git rebase *) prefix-matches, Bash(git rebase*) matches a command literally ending in an asterisk and so never fires. A flag that can appear later in the line (git push origin --force) is out of reach of a prefix rule; take the common form and let the script's own parsing catch the rest.
+- Check the working directory before acting. This plugin is installed per machine and fires in every repo its owner opens, including repos it was never written for. A guard that cannot tell whether it applies must do nothing.
+- Guard 5 injects, never blocks: exit 0 with hookSpecificOutput.additionalContext and no permissionDecision, so the edit proceeds and Claude simply reads the rule. Before injecting, grep the host repo's CLAUDE.md and .claude/rules/ for the rule's own keywords and stay silent if the repo already says it — a repo that ran its own setup must not hear the same rule twice. When the check is ambiguous, speak: a duplicated paragraph costs less than a missing rule.
+- Guard 5 speaks once per session, not once per file. Key a marker file in the OS temp directory to the session id from the hook input, or a thirty-file refactor pays for the same paragraph thirty times.
+- Blocking guards exit 2 with the reason on stderr, or return permissionDecision with permissionDecisionReason. Say what to do instead, not just no.
+
+NOTHING SENSITIVE GOES IN THIS REPO. It is cloned in plaintext onto every developer's machine and auto-updates from git. Private here means the company's conventions aren't public — it is not a safe place for a token, an internal hostname, or a customer name.
+
+BEFORE YOU FINISH
+- Run each guard once and show me what happened: a denied command, an allowed one, and guard 5 both speaking and staying quiet. A hook nobody has fired is a hook that does not work.
+- Print the tree you created and one line per guard.
+- Print the exact steps to add a stack plugin: create {company}-rn-mobile/ with its own .claude-plugin/plugin.json, add one entry to the plugins array, commit. Say that a stack plugin is where skills belong, and that its hooks answer to the same working-directory rule.
+
+Do not create files outside this repository, and do not add a CLAUDE.md for the plugin — a plugin's own CLAUDE.md is never shipped to the people who install it.`
 
 // The team's Claude workspace setup prompt, embedded verbatim for the
 // "Team setup prompt" card. Edit here to update what the card copies.
@@ -53,7 +74,7 @@ Create this structure:
 │   ├── security.md
 │   └── testing.md          (only if the repo has a test suite)
 ├── hooks/
-│   └── guard.mjs           (only if a hook below actually has something to run)
+│   └── guard.mjs           (every hook in settings.json runs this one script)
 ├── skills/
 │   ├── rn-component/SKILL.md
 │   ├── rn-screen/SKILL.md
@@ -118,7 +139,8 @@ settings.json: permissions and hooks, nothing else. Rules are context and Claude
 - Wrong package manager: derive the right one from package.json \`packageManager\`, else from whichever lockfile exists, and deny the others whole (\`Bash(npm *)\`, \`Bash(yarn *)\`, …) rather than listing install subcommands, which leaves \`npm i\` open. Deny rules cover this — no hook script needed.
 - PostToolUse on \`Edit|Write\`: run the repo's OWN formatter on the edited file, if one is configured (prettier, biome, eslint --fix — whatever package.json actually has). Skip this hook if the repo has no formatter, or if its linter only ever emits warnings and therefore always exits 0: a hook that cannot fail is worse than no hook, and never add a formatter to give the hook something to do.
 - Stop: check that source edited today has its docs/CHANGELOG.md line, and exit 2 with the reason if not. That is the part of the docs contract a session skips first when it ends abruptly.
-Any hook that needs the tool input parses the hook JSON on stdin, so write it as one Node script under .claude/hooks/ that switches on \`hook_event_name\` — not a shell script. RN teams run mixed macOS and Windows machines and \`jq\` is a given on neither. A PreToolUse hook denies with \`hookSpecificOutput.permissionDecision\`; \`"ask"\` rather than \`"deny"\` where a human might legitimately approve the thing.
+- Stop: reject the comment tells rule 3 names outright — an emoji, a section banner, a \`Note:\` prefix — in comment lines this work added. Read them from \`git diff HEAD\` AND from the files \`git ls-files --others --exclude-standard\` reports, because a newly created file appears in no diff and would otherwise be the one place the check can't see. Strip the comment marker and anchor the \`Note:\` pattern to the start of what's left, or an ordinary sentence containing "note:" trips it. Enforce only this mechanical half and say so in the script: whether a well-formed comment actually says something the code doesn't is judgement no regex has, and the rule file is what carries it.
+Any hook that needs the tool input parses the hook JSON on stdin, so write it as one Node script under .claude/hooks/ that switches on \`hook_event_name\` — not a shell script. RN teams run mixed macOS and Windows machines and \`jq\` is a given on neither. Stay inside what the oldest Node a teammate might have on PATH provides: \`fs.globSync\` arrived in Node 22, and an import that doesn't resolve throws before any of the script runs, so the hook exits 1 and Claude Code lets the session end — the whole guard silently absent on anyone's older Node. Ask git for file lists instead. Run each hook once on this repo before you finish, including a deliberately failing case, or you have only proved that it loads. A PreToolUse hook denies with \`hookSpecificOutput.permissionDecision\`; \`"ask"\` rather than \`"deny"\` where a human might legitimately approve the thing.
 
 PHASE 3 — REPORT
 Print a tree of what was created (and anything you skipped, because it already existed or because this repo gave it nothing to do), plus a one-line summary per rule, hook, skill and agent — for each hook, state that you ran it and what it did. Do not modify a single line of application code during this setup.`

@@ -15,15 +15,21 @@ interface Props {
 export function Modal({ title, onClose, children, wide }: Props) {
   const panelRef = useRef<HTMLDivElement>(null)
 
+  // Move focus off the trigger button and into the dialog — standard dialog
+  // behavior, and it keeps the trigger's tooltip from re-appearing on close.
+  // Mount only: callers pass an inline `onClose`, so an effect that depends on
+  // it re-runs every render and would drag focus out of whatever the user is
+  // typing into.
+  useEffect(() => {
+    panelRef.current?.focus()
+  }, [])
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', onKey)
     document.body.style.overflow = 'hidden'
-    // Move focus off the trigger button and into the dialog — standard dialog
-    // behavior, and it keeps the trigger's tooltip from re-appearing on close.
-    panelRef.current?.focus()
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = ''

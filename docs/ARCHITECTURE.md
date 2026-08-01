@@ -70,6 +70,8 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
 | Icons | `lucide-react`, numeric `size` prop 12–22 | other icon sets |
 | Copy-to-clipboard, command display | `CommandBlock` + `useCopy` | rebuilding either |
 | An image/file input in a tool modal | a `kind: 'image'` `ModalField` (renders `ImageDropField`) | a modal branched on `tool.id` |
+| One modal that serves two audiences, or a command with two forms | a `kind: 'choice'` `ModalField` (renders `SegmentedControl`) plus `whenFieldIs` on the steps it gates ([0034](decisions/0034-modal-modes-are-a-choice-field.md)) | a tab component, or a second card saying the same thing twice |
+| A caveat only some readers need | `tooltip` on the step, behind an info icon | a longer `note`, or prose above the steps |
 | Overlays | `Modal` component | new modal implementations |
 | Server-side anything | a Pages Function under `functions/` bound in `wrangler.toml` | separate services |
 
