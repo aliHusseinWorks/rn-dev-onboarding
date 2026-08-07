@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Check, Circle, Download, ExternalLink } from 'lucide-react'
-import { buttonLabel, resolveAction, resolveSecondary, resolveVersion } from '../lib/commands'
+import { buttonLabel, hasModalContent, resolveAction, resolveSecondary, resolveVersion } from '../lib/commands'
 import { toolIcon } from '../lib/icons'
 import { useLatestVersion } from '../lib/versions'
 import type { PlatformId } from '../lib/platform'
@@ -110,7 +110,7 @@ export function ToolCard({ tool, category, platform, index, installed, onToggle,
           </a>
         )}
 
-        {tool.modal && (
+        {hasModalContent(tool, platform) && (
           <button
             onClick={onOpen}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-fg-muted transition-colors hover:border-border-strong hover:text-fg cursor-pointer"

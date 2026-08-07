@@ -141,7 +141,14 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
     macPaths: ['~/.local/bin/claude'],
     linuxPaths: ['~/.local/bin/claude'],
   },
-  herdr: { bins: ['herdr'] },
+  // The hook the `integration install claude` step writes, NOT `bins: ['herdr']`.
+  // Checks are any-of, so keeping the binary alongside it would tick the card for
+  // a machine that has herdr and restores every pane as a bare shell ([0029]).
+  herdr: {
+    macPaths: ['~/.claude/hooks/herdr-agent-state.sh'],
+    winPaths: ['$env:USERPROFILE\\.claude\\hooks\\herdr-agent-state.sh'],
+    linuxPaths: ['~/.claude/hooks/herdr-agent-state.sh'],
+  },
   fastlane: { bins: ['fastlane'] },
   superpowers: { claudePlugin: 'superpowers@' },
   ponytail: { claudePlugin: 'ponytail@' },

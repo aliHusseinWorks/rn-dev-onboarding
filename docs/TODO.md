@@ -15,10 +15,50 @@ this file exists only because this repo has no board.
       unfiled — [0019](decisions/0019-graphify-removed.md) removed
       the hook, so it no longer affects this repo; the numbers above are the repro
       if anyone wants to report it upstream.
-- [ ] Category rail rows for sections the search has filtered out stay clickable
-      and do nothing (the section is unmounted, so `getElementById` returns null
-      and the optional chain swallows it). Dim or disable them if anyone trips
-      over it — [0020](decisions/0020-fluid-layout-and-category-rail.md).
+- [x] `manual` meant two things — the prompt read it as "the agent cannot run
+      this", `App.tsx:459` as "this is not a command", so the one `manual` step
+      holding a real shell line rendered as uncopyable prose. Split rather than
+      overloaded: `ModalStep.userRun` marks a command only the user can run. The
+      prompt treats it exactly like `manual` ([HUMAN], counted in `handsOn`);
+      the modal renders it through `CommandBlock`, so it stays copyable. No
+      renderer change was needed — `userRun` simply isn't `manual`.
+- [x] The SSH key card's note named `~/.ssh` on every platform; it now names
+      `%USERPROFILE%\.ssh` for Windows too. `note` is a plain string with no
+      per-platform form, so both paths are stated rather than branched. The
+      generated-prompt leak sweep that found it is worth repeating whenever a
+      rule gains a per-OS branch: grep the prompt for `zsh`, `Terminal.app`,
+      `/Applications/`, `env:` and `PowerShell` on the platform that shouldn't
+      have them.
+- [x] `elevated` on Windows is no longer a guess. The winget manifests answer it
+      directly: `Docker.DockerDesktop` and `Microsoft.OpenJDK.17` are
+      `Scope: machine` with `ElevationRequirement: elevatesSelf`, while
+      `Microsoft.Teams` (user MSIX) and `Zoho.Cliq` (`Scope: user`) need no
+      elevation at all — and the first draft that elevated them would have
+      registered a user MSIX against the administrator account. `elevated` is
+      per-platform now
+      ([0038](decisions/0038-elevated-installs-are-one-block-the-user-runs.md)).
+      Still unobserved: whether a real UAC run behaves as the manifests imply.
+- [x] The Node card covers Windows too — fnm keeps a stable
+      `%APPDATA%\fnm\aliases\default` it repoints on `fnm default`, so the card
+      appends that to the user PATH (no `bin` subdirectory there: `node.exe` sits
+      at the root of a Windows install)
+      ([0037](decisions/0037-node-needs-a-path-outside-fnms-per-shell-dir.md)).
+      Shipped on documented mechanism rather than a first-hand repro, because a
+      spare PATH entry is harmless and the alternative is three MCP cards
+      silently broken on every Windows machine.
+- [x] `sizeMb` is measured on every app cask now — `Content-Length` on the real
+      download, or the dmg/pkg in Homebrew's cache — taking macOS from ~17 to
+      ~18 GB and Windows/Linux from ~5 to ~6 GB. Formula tools still carry none
+      on purpose: a bottle's cost is its dependency tree, not the card's to name
+      ([0039](decisions/0039-the-estimate-names-its-download-total.md)).
+- [x] The `devices.xml` caveat now rides on the Android Studio card's AVD step
+      as a `tooltip`, which is what tooltips are for — the caveat a reader needs
+      only once, kept out of the step's own line. It stays scoped to the CLI
+      path, since the card's wording is the Studio GUI.
+- [x] Category rail rows for filtered-out sections are `disabled` and dimmed
+      instead of silently doing nothing. The predicate is the same one
+      `CategorySection` returns null on — `toolsInCategory(...).some(matchesQuery)`
+      — so a row is dead exactly when its target isn't on the page.
 - [ ] `emitTool` runs `askTokens` before the slash-command branch `continue`s, so
       a tool whose only steps are slash commands would contribute its field
       labels to STEP 0 while contributing nothing to the ground-truth list — the
@@ -31,11 +71,9 @@ this file exists only because this repo has no board.
       bar's height — a fourth control, a taller chip — has to be re-measured or
       headers slide under it. The rail's own `top-20` is a separate literal that
       only holds because the bar is 63px at xl.
-- [ ] The toolbar controls wrap to two rows below ~414px and the search field
-      shrinks to a few characters wide (pre-existing — the row has always been
-      `flex-wrap` — but the bar is sticky now, so it costs ~18% of a phone
-      viewport permanently). A `min-w` on the search field would push it to its
-      own full-width row instead.
+- [x] The search field carries `min-w-56`, so the `flex-wrap` toolbar drops it
+      onto its own full-width row instead of squeezing it to a few characters on
+      a narrow phone.
 - [ ] The statusline's `pr.number` / `pr.url` / `pr.review_state` fields look
       GitHub-only — the docs example is a github.com URL mirroring the `gh` PR
       badge — so a PR-aware profile is probably dead for this team on Bitbucket.
@@ -51,12 +89,12 @@ this file exists only because this repo has no board.
       redesign, since a 10-minute outage fails the installs anyway.
 - [ ] Verify Zoho Cliq's Windows install dir (`detect.ts` guesses
       `$env:LOCALAPPDATA\Programs\zoho-cliq`) on a machine that has it.
-- [ ] herdr's detect spec (`bins: ['herdr']`) can't see whether the Claude
-      integration from [0029](decisions/0029-herdr-persistence-needs-the-integration-not-config.md)
-      is installed, so a machine that restores every pane as a bare shell still
-      ticks the card as done. `HERDR_INTEGRATION_ID` in `~/.claude/hooks/` would
-      catch it; weigh that against a hand-written needle for something that isn't
-      a tool.
+- [x] herdr's detect spec is the integration's hook file
+      (`~/.claude/hooks/herdr-agent-state.sh`) rather than `bins: ['herdr']`.
+      Checks are any-of, so keeping the binary alongside it would still have
+      ticked a machine that restores bare shells; erring red follows
+      [0022](decisions/0022-jdk-detected-by-pinned-paths-not-javac.md) — a false
+      red costs one idempotent re-run of a step the card already lists.
 - [x] Teams desktop showed no version badge because the `microsoft-teams` cask
       reports the macOS build (26183.1901.4874.5228) and Windows Teams numbers
       diverge from it. `version` takes a per-platform map now, so mac shows the
@@ -67,12 +105,11 @@ this file exists only because this repo has no board.
       [0022](decisions/0022-jdk-detected-by-pinned-paths-not-javac.md) dropped the
       version-blind `javac` check. Deliberate — a false red costs one idempotent
       re-install, a false green costs a broken build. Add paths if anyone trips.
-- [ ] The JDK card is named "JDK 17 (Azul Zulu)" and badges Azul's patch level
-      on every platform, but its Windows command installs Microsoft.OpenJDK.17
-      and Linux installs `openjdk-17-jdk`. All three track the same upstream
-      17.0.x so the number is right in practice — pre-existing, noticed while
-      adding the badges, and a per-platform `version` map would cover it if the
-      patch levels ever drift.
+- [x] The JDK card is named "JDK 17", not "JDK 17 (Azul Zulu)": it installs Zulu
+      on macOS, Microsoft's build on Windows and the distro's OpenJDK on Linux, so
+      one vendor name was wrong on two platforms. The badge is now a per-platform
+      map carrying only the macOS source, since that is the only one with a number
+      worth trusting ([0021](decisions/0021-version-badges-via-homebrew-cask-api.md)).
 - [x] Report upstream to graphify: on Windows it writes `graphify-out/.graphify_root`
       and `.graphify_python` with a UTF-8 BOM. The post-commit hook strips
       whitespace but not the BOM, so the root path becomes
@@ -101,11 +138,11 @@ this file exists only because this repo has no board.
       `brew fetch`). Fixable only by having the agent run the downloaded
       installer directly, which means the ground-truth command and the command
       actually run stop matching — not worth it for one 1.2 GB download.
-- [ ] `detectScript.ts` drops `DETECT_SPECS` values straight into single-quoted
-      sh and PowerShell literals with no escaping. Safe today — every value is
-      hand-written and quote-free — but one containing `'` would break out of
-      both generators. Worth a guard, or a check over `DETECT_SPECS`, before a
-      value ever comes from anywhere but this repo.
+- [x] `detectScript.ts` escapes spec values before they land in a single-quoted
+      literal — `'\''` for sh, `''` for PowerShell, the same two idioms
+      `tokens.tsx` applies to modal commands (not imported from there, which
+      carries JSX). Still true that no value contains a `'` today; the quoting no
+      longer depends on that holding.
 - [ ] Detect's Undo ([0013](decisions/0013-detect-applies-whole-result-with-undo.md))
       survives closing the modal now that the snapshot lives in `App`
       ([0033](decisions/0033-detect-session-lives-in-app-and-codes-dont-expire.md)),

@@ -27,6 +27,8 @@ Everything is data-driven — **no UI code changes needed**. Edit `src/lib/tools
   order: 8,                      // position within its category
   docsUrl: 'https://example.com',
   note: 'Optional short note shown under the card.',
+  elevated: true,                // installing it makes the OS ask for a password/UAC
+  sizeMb: 1500,                  // only if big enough to move the download warning
 
   // A tool has EITHER per-platform `actions`…
   actions: {
@@ -54,9 +56,13 @@ Helpers at the top of the file keep entries terse:
 
 **Platform ids:** `mac-arm`, `mac-intel`, `win-x64`, `win-arm`, `linux`.
 
+Two flags decide whether a tool appears in the generated prompt's front matter rather than only its body:
+- `elevated` — the install triggers an OS password or UAC prompt. Those are collected into one block in STEP 0 for the user to run in a real terminal, because nothing the agent has can answer that prompt ([0038](docs/decisions/0038-elevated-installs-are-one-block-the-user-runs.md)). Set it from the packaging, not a guess: on macOS that means a cask with a `pkg` artifact (`brew info --cask --json=v2 <name>`), not one that merely copies an `.app`.
+- `sizeMb` — feeds the modal's download warning. Only worth setting above a few hundred MB; the total is deliberately a floor ([0039](docs/decisions/0039-the-estimate-names-its-download-total.md)).
+
 **Ripple checklist** — a tool change isn't done until everything consuming it is updated:
 1. `DETECT_SPECS` in `src/lib/detect.ts` — how the detect scan finds it (bin on PATH, install dir, Store package, `~/.claude.json` needle for MCP servers, `~/.claude/settings.json` needle for plugins). No spec = silently left out of the scan.
-2. The AI-setup prompt derives from `tools.ts` automatically — but eyeball it if the tool has unusual steps (manual/`docsOnly` flags, fields).
+2. The AI-setup prompt derives from `tools.ts` automatically — but eyeball it if the tool has unusual steps (manual/`docsOnly` flags, fields), and check the STEP 0 block and download warning if you touched `elevated` or `sizeMb`. The whole prompt is dumpable without a browser: `tsc --ignoreConfig src/lib/aiSetup.ts --outDir <tmp> --module commonjs --moduleResolution node --skipLibCheck`, then `require` it and call `generateAiSetup('mac-arm')`.
 3. One line in `docs/CHANGELOG.md`, under today's `## YYYY-MM-DD` heading.
 
 Add a **category** by appending to `CATEGORIES` (id, title, description, `accent` hex, order). The accent colors the category's icons and rail. Set `checkable: false` if its cards are per-project actions rather than machine state — they then carry no checkmark and stay out of the progress count, the AI setup and the detect scan.

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { categoryProgress } from '../lib/commands'
+import { categoryProgress, toolsMatching } from '../lib/commands'
 import type { PlatformId } from '../lib/platform'
 import type { Category } from '../lib/tools'
 import { ProgressBar } from './ProgressBar'
@@ -104,17 +104,22 @@ export function CategoryRail({ categories, platform, installed, query, done, tot
 
       {categories.map((category) => {
         const { done, total } = categoryProgress(category.id, platform, installed)
+        const present = toolsMatching(category, query).length > 0
+        // A row filtered out mid-search must stop reading as active too, not just
+        // stop being clickable: nothing scrolls while you type, so the pin holds.
+        const isActive = present && active === category.id
         return (
           <button
             key={category.id}
+            disabled={!present}
             onClick={() => {
               pinned.current = category.id
               setActive(category.id)
               document.getElementById(category.id)?.scrollIntoView()
             }}
-            aria-current={active === category.id || undefined}
-            className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors cursor-pointer ${
-              active === category.id ? 'bg-muted text-fg' : 'text-fg-muted hover:text-fg'
+            aria-current={isActive || undefined}
+            className={`flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+              isActive ? 'bg-muted text-fg' : 'text-fg-muted hover:text-fg'
             }`}
           >
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: category.accent }} />

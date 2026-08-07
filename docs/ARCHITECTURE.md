@@ -49,6 +49,9 @@ public/               served at the site root: favicon, plus the herdr launcher
 wrangler.toml         Pages project + KV binding
 docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
                       decisions/ (see CLAUDE.md contract; README stays at root)
+                      SETUP-RUN-FINDINGS.md is a one-off field report from running
+                      the generated AI setup end to end; its open rows live in
+                      TODO.md, so it is a record rather than a working document
 .claude/              the team's committed Claude Code wiring:
   rules/                code-style.md, security.md — path-scoped, auto-loaded
   hooks/guard.mjs       the two rules context can't guarantee (see settings.json)

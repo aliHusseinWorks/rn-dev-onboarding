@@ -23,8 +23,10 @@ export function SearchBar({ value, onChange }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
+  // min-w so the flex-wrap toolbar drops this onto its own full-width row rather
+  // than squeezing it to a few characters on a narrow phone.
   return (
-    <div className="relative flex-1">
+    <div className="relative min-w-56 flex-1">
       <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
       <input
         ref={inputRef}

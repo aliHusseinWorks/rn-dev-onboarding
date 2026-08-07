@@ -18,7 +18,7 @@ interface Props {
 const LAUNCH = 'claude --dangerously-skip-permissions'
 
 const FLAG_TIP =
-  'Without it, Claude Code asks before every command and you approve each step yourself, so you can’t walk away. Neither mode can absorb your OS’s own prompts.'
+  'Without it, Claude Code asks before every command and you approve each step yourself, so you can’t walk away. Neither mode can absorb your OS’s own prompts — and Claude has no terminal to type a password into, so those installs are handed back to you as one block.'
 
 const REMOTE_TIP =
   'Adds --remote-control, which also opens the session at claude.ai/code and in the Claude app. Send /config once and turn on “Push when actions required” so it can notify you there.'
@@ -28,7 +28,7 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
   const [remote, setRemote] = useState(false)
   const groups = useMemo(() => aiSetupGroups(platform), [platform])
   const done = useMemo(() => new Set(Object.keys(installed).filter((id) => installed[id])), [installed])
-  const { bootstrap, prompt, asks, handsOn } = useMemo(
+  const { bootstrap, prompt, asks, handsOn, downloadMb, elevatedCount } = useMemo(
     () => generateAiSetup(platform, excluded, done),
     [platform, excluded, done],
   )
@@ -60,26 +60,38 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
   // a hands-on step is one sign-in or dialog either way.
   const plan = useMemo(() => {
     const round5 = (n: number) => Math.max(5, Math.round(n / 5) * 5)
-    const installing = round5(selectedCount * 0.7)
+    // The elevated tools install while the user watches, so their minutes belong
+    // to that phase rather than the walk-away one.
+    const unattended = Math.max(0, selectedCount - elevatedCount)
+    // round5 floors at 5, so each of these has to be gated or a phase claims five
+    // minutes for nothing.
+    const installing = unattended > 0 ? round5(unattended * 0.7) : 0
     const ending = handsOn > 0 ? round5(handsOn * 2) : 0
+    const blocking = elevatedCount > 0 ? round5(elevatedCount * 0.7) : 0
     const phases: Array<{ time: string; label: string }> = []
     if (asks > 0) phases.push({ time: '1 min', label: `Answer the ${asks} questions it asks up front` })
-    phases.push({
-      time: '~5 min',
-      label:
-        PLATFORM_INFO[platform].os === 'win'
-          ? 'Stay at the machine for the Windows admin (UAC) prompts'
-          : 'Stay at the machine for the sudo password prompts',
-    })
-    phases.push({
-      time: `~${installing} min`,
-      label: `Walk away — ${selectedCount} tools install and verify themselves`,
-    })
+    if (elevatedCount > 0) {
+      phases.push({
+        time: `~${blocking} min`,
+        label:
+          PLATFORM_INFO[platform].os === 'win'
+            ? `Run one block yourself in PowerShell — ${elevatedCount} installs that need admin`
+            : `Run one block yourself in a terminal — ${elevatedCount} installs, one password`,
+      })
+    }
+    if (unattended > 0) {
+      phases.push({
+        time: `~${installing} min`,
+        label: `Walk away — ${unattended} tools install and verify themselves`,
+      })
+    }
     if (ending > 0) {
       phases.push({ time: `~${ending} min`, label: `Come back for ${handsOn} steps only you can do — sign-ins, key pastes` })
     }
-    return { phases, away: installing, total: round5((asks > 0 ? 6 : 5) + installing + ending) }
-  }, [platform, selectedCount, asks, handsOn])
+    return { phases, away: installing, total: round5((asks > 0 ? 1 : 0) + blocking + installing + ending) }
+  }, [platform, selectedCount, asks, handsOn, elevatedCount])
+
+  const downloadGb = downloadMb >= 1000 ? Math.round(downloadMb / 1000) : 0
 
   // Claude Code is a card like any other, so a ticked-off one drops its install
   // step here too — the fresh-PATH warning only matters right after installing.
@@ -98,7 +110,7 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
     <Modal title="Full AI setup" onClose={onClose} wide>
       <div className="flex flex-col gap-4">
         {/* Nothing to install means nothing to paste — the list below is then the whole point. */}
-        {!nothingLeft && (
+        {!nothingLeft && plan.phases.length > 0 && (
           <div className="max-w-lg text-sm leading-relaxed text-fg-muted">
             <p>
               {steps.length === 1 ? 'One paste' : 'Two pastes'} and the AI installs every tool selected below for{' '}
@@ -114,6 +126,12 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
                 </li>
               ))}
             </ul>
+            {downloadGb > 0 && (
+              <p className="mt-2 text-xs text-warning">
+                Those minutes assume a fast connection. This selection pulls{' '}
+                <span className="font-mono">~{downloadGb} GB</span> — on slow Wi-Fi it is hours, not minutes.
+              </p>
+            )}
           </div>
         )}
         {!nothingLeft &&
@@ -153,11 +171,12 @@ export function AiSetupModal({ platform, installed, onClose }: Props) {
         {!nothingLeft && (
           <div className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
             <p className="max-w-lg text-xs leading-relaxed text-fg-muted">
-              <span className="font-mono text-fg">--dangerously-skip-permissions</span> is what makes it unattended: it
-              runs the whole list without checking with you. Your OS still asks for itself —{' '}
+              <span className="font-mono text-fg">--dangerously-skip-permissions</span> governs Claude&rsquo;s own
+              approvals and nothing else — it is not an auto mode for your machine. It stops Claude asking before each
+              command, which is what lets the install phase run unattended.{' '}
               {PLATFORM_INFO[platform].os === 'win'
-                ? 'UAC prompts sit on a dimmed screen and auto-cancel after ~2 minutes.'
-                : 'sudo asks for your password.'}
+                ? 'UAC dialogs still come from Windows and no flag can accept them, which is why one block is yours to run.'
+                : 'Your password prompt still comes from the OS and no flag can answer it, which is why one block is yours to run.'}
             </p>
             <Tooltip label={FLAG_TIP}>
               <button

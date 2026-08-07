@@ -1,5 +1,6 @@
 import { checksFor, describeChecks, DETECT_SPECS, detectGroups, RESULT_PREFIX, type DetectCheck } from './detect'
 import { PLATFORM_INFO, type PlatformId } from './platform'
+import { shellSingleQuote } from './tokens'
 
 // Relay endpoint. The relay deploys with the site as a Cloudflare Pages
 // Function (functions/report/[code].ts), so the page talks to its own
@@ -8,6 +9,20 @@ import { PLATFORM_INFO, type PlatformId } from './platform'
 // the POST and the user pastes the RN-ONBOARD/1 line instead.
 export const DETECT_ENDPOINT: string | undefined =
   typeof location !== 'undefined' ? location.origin : undefined
+
+// Delimiter for the heredoc the unix script is wrapped in.
+const HEREDOC_TAG = 'RN_SCAN'
+
+// Every interpolated value passes through this first. Single-quoting contains
+// `'`, `$` and backticks but not a line break, and a break is what the heredoc
+// made dangerous: a value carrying a line equal to HEREDOC_TAG closes the
+// heredoc early and hands the rest of the script to the user's interactive
+// shell instead of the child `sh`. It also covers the comment lines, which are
+// interpolated outside any quoting in both generators — a newline there escapes
+// `#` on either shell.
+function flatten(value: string): string {
+  return value.replace(/[\r\n]+/g, ' ')
+}
 
 // One-time pairing code: 12 chars of [a-z0-9] via rejection sampling
 // (~62 bits), matching the worker's ^[a-z0-9]{10,32}$.
@@ -66,7 +81,12 @@ function header(platform: PlatformId, code: string): string[] {
 // no arrays, no [[ ]], no set -e (a missing tool must not abort the scan),
 // no globs in [ -e ] tests (zsh NOMATCH aborts unmatched globs).
 function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): string {
-  const expand = (p: string) => (p.startsWith('~/') ? `$HOME/${p.slice(2)}` : p)
+  const quote = shellSingleQuote(platform)
+  const q = (value: string) => quote(flatten(value))
+  // `~/` is the one thing a mac/linux spec path may interpolate, so it is spliced
+  // in outside the quotes and the remainder is quoted like everything else.
+  const pathTest = (p: string) =>
+    p.startsWith('~/') ? `[ -e "$HOME"'/${q(p.slice(2))}' ]` : `[ -e '${q(p)}' ]`
   const lines = [
     '#!/bin/sh',
     ...header(platform, code),
@@ -80,13 +100,13 @@ function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): 
   ]
   for (const t of targets) {
     const conds = t.checks.map((c) => {
-      if (c.kind === 'bin') return `has ${c.value}`
-      if (c.kind === 'config') return `has_cfg '${c.value}'`
-      if (c.kind === 'plugin') return `has_plugin '${c.value}'`
-      return `[ -e "${expand(c.value)}" ]`
+      if (c.kind === 'bin') return `has '${q(c.value)}'`
+      if (c.kind === 'config') return `has_cfg '${q(c.value)}'`
+      if (c.kind === 'plugin') return `has_plugin '${q(c.value)}'`
+      return pathTest(c.value)
     })
-    lines.push(`# ${t.name} - ${t.how}`)
-    lines.push(`if ${conds.join(' || ')}; then ok ${t.id}; else no ${t.id}; fi`)
+    lines.push(`# ${flatten(t.name)} - ${flatten(t.how)}`)
+    lines.push(`if ${conds.join(' || ')}; then ok '${q(t.id)}'; else no '${q(t.id)}'; fi`)
   }
   lines.push('', 'FOUND="${FOUND#,}"; IDS="${IDS#,}"', `printf '${RESULT_PREFIX} %s\\n' "$FOUND"`)
   if (DETECT_ENDPOINT) {
@@ -102,7 +122,14 @@ function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): 
       `if [ "$SENT" -eq 0 ]; then echo '${REPORT_OK_MSG}'; else echo '${REPORT_FAIL_MSG}'; fi`,
     )
   }
-  return lines.join('\n')
+  // Handed to `sh` through a quoted heredoc rather than pasted line by line. This
+  // is an sh script, but it is pasted into an interactive shell, and macOS ships
+  // zsh: there `!` is history expansion (`#!/bin/sh` alone fails with "event not
+  // found") and `#` is not a comment unless interactive_comments is set, so every
+  // comment line becomes "command not found: #" — 34 errors on a script that then
+  // half-works. A quoted delimiter makes the whole body literal, so the comments
+  // the script is meant to be read for survive without escaping anything.
+  return [`sh <<'${HEREDOC_TAG}'`, ...lines, HEREDOC_TAG].join('\n')
 }
 
 // Windows. PowerShell 5.1-compatible: no && / || chains, no ternary,
@@ -114,6 +141,8 @@ function unixScript(platform: PlatformId, targets: ScanTarget[], code: string): 
 // it buffers the rest of the script and waits for a blank line that a paste
 // never contains.
 function psScript(platform: PlatformId, targets: ScanTarget[], code: string): string {
+  const quote = shellSingleQuote(platform)
+  const q = (value: string) => quote(flatten(value))
   const lines = [
     ...header(platform, code),
     '$found = New-Object System.Collections.ArrayList',
@@ -127,14 +156,17 @@ function psScript(platform: PlatformId, targets: ScanTarget[], code: string): st
   ]
   for (const t of targets) {
     const conds = t.checks.map((c) => {
-      if (c.kind === 'bin') return `(Test-Bin '${c.value}')`
-      if (c.kind === 'appx') return `(Test-Appx '${c.value}')`
-      if (c.kind === 'config') return `(Test-Cfg '${c.value}')`
-      if (c.kind === 'plugin') return `(Test-Plugin '${c.value}')`
-      return `(Test-Path "${c.value}")`
+      if (c.kind === 'bin') return `(Test-Bin '${q(c.value)}')`
+      if (c.kind === 'appx') return `(Test-Appx '${q(c.value)}')`
+      if (c.kind === 'config') return `(Test-Cfg '${q(c.value)}')`
+      if (c.kind === 'plugin') return `(Test-Plugin '${q(c.value)}')`
+      // Interpretive by design, but still flattened: psScript's one-line rule
+      // means a newline here drops the console to its `>>` continuation prompt,
+      // which then eats the rest of the paste.
+      return `(Test-Path "${flatten(c.value)}")`
     })
-    lines.push(`# ${t.name} - ${t.how}`)
-    lines.push(`if (${conds.join(' -or ')}) { Ok '${t.id}' } else { No '${t.id}' }`)
+    lines.push(`# ${flatten(t.name)} - ${flatten(t.how)}`)
+    lines.push(`if (${conds.join(' -or ')}) { Ok '${q(t.id)}' } else { No '${q(t.id)}' }`)
   }
   lines.push('', `"${RESULT_PREFIX} $($found -join ',')"`)
   if (DETECT_ENDPOINT) {

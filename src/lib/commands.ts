@@ -25,6 +25,24 @@ export function categoryProgress(
   return { done: tools.filter((t) => installed[t.id]).length, total: tools.length }
 }
 
+// A modal is worth opening only if this platform has something to show in it. A
+// prompt is cross-platform; steps are not, and a card whose every step is keyed
+// to another OS would otherwise offer "View setup" and open an empty panel.
+export function hasModalContent(tool: Tool, platform: PlatformId): boolean {
+  const modal = tool.modal
+  if (!modal) return false
+  if (modal.prompt) return true
+  return (modal.steps ?? []).some((step) =>
+    typeof step.command === 'string' ? true : Boolean(step.command[platform]),
+  )
+}
+
+// What a category shows for the current search. CategorySection renders these and
+// the rail disables a row when there are none, so both read one expression.
+export function toolsMatching(category: Category, query: string): Tool[] {
+  return toolsInCategory(category.id).filter((t) => matchesQuery(t, category, query))
+}
+
 export function matchesQuery(tool: Tool, category: Category | undefined, query: string): boolean {
   const q = query.trim().toLowerCase()
   if (!q) return true
@@ -59,6 +77,14 @@ export function resolveVersion(tool: Tool, platform: PlatformId): VersionSource 
 
 export function resolveSecondary(tool: Tool, platform: PlatformId): ToolAction | undefined {
   return tool.secondary?.[platform]
+}
+
+// Same bare-or-per-platform shape as resolveVersion, and absent means false: a
+// tool is only elevated where it says so.
+export function resolveElevated(tool: Tool, platform: PlatformId): boolean {
+  const elevated = tool.elevated
+  if (!elevated) return false
+  return typeof elevated === 'boolean' ? elevated : Boolean(elevated[platform])
 }
 
 // Tools with platform actions are available where an action exists — even if

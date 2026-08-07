@@ -16,6 +16,11 @@ export interface ModalStep {
   // true = a GUI/human instruction, not a shell command (e.g. "paste the key
   // into Bitbucket"). The AI setup prompt marks these as [HUMAN] steps.
   manual?: boolean
+  // true = a real command that only the user can run, because it needs a
+  // password the agent has no terminal to type. [HUMAN] in the prompt like
+  // `manual`, but still copyable in the modal — `manual` renders as prose, which
+  // is right for GUI wording and wrong for a line you have to retype.
+  userRun?: boolean
   // One of several ways to do the step above, not a step of its own: bulleted
   // rather than numbered, and it doesn't advance the count. Numbered
   // alternatives read as a sequence you work through.
@@ -101,6 +106,17 @@ export interface Tool {
   // false = excluded from the generated setup script (per-project actions
   // like scaffolding an app, as opposed to machine setup).
   inScript?: boolean
+  // Download size in MB, feeding the AI setup's download-total warning. Tools
+  // installed as formulae carry none: a bottle's cost is mostly its dependencies.
+  // Xcode's includes the iOS simulator runtime and Android Studio's the SDK
+  // packages, neither of which has a card of its own to hang a size on.
+  sizeMb?: number
+  // true = the OS itself demands a password or UAC consent to install this, which
+  // nothing the agent has can answer, so the AI setup hands it to the user.
+  // Per-platform because the same app ships as a privileged `pkg` on macOS and a
+  // user-scope install on Windows, where elevating is wrong rather than merely
+  // unnecessary.
+  elevated?: boolean | Partial<Record<PlatformId, boolean>>
   actions?: Partial<Record<PlatformId, ToolAction>>
   secondary?: Partial<Record<PlatformId, ToolAction>>
   modal?: ToolModal
@@ -145,6 +161,26 @@ const ANDROID_ENV_LINUX = `printf '\\nexport ANDROID_HOME=$HOME/Android/Sdk\\nex
 const ANDROID_ENV_WIN =
   '[Environment]::SetEnvironmentVariable("ANDROID_HOME", "$env:LOCALAPPDATA\\Android\\Sdk", "User"); [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:LOCALAPPDATA\\Android\\Sdk\\platform-tools;$env:LOCALAPPDATA\\Android\\Sdk\\emulator", "User")'
 
+const JAVA_HOME_WIN =
+  '$jdk = Get-ChildItem "$env:ProgramFiles\\Microsoft" -Directory -Filter "jdk-17*" | Select-Object -First 1; [Environment]::SetEnvironmentVariable("JAVA_HOME", $jdk.FullName, "User")'
+
+// fnm publishes Node only through `fnm env`, into a per-shell directory that
+// dies with the shell, so anything not launched from an interactive shell sees no
+// node at all. These symlinks are the copy those callers resolve; they point at
+// the `default` alias rather than a version directory, so `fnm default` moves
+// them. fnm's own directory still comes first on an interactive PATH, so
+// `fnm use` keeps switching per repo.
+const FNM_STABLE_UNIX = `mkdir -p ~/.local/bin; for b in node npm npx; do ln -sfn ~/.local/share/fnm/aliases/default/bin/$b ~/.local/bin/$b; done`
+
+// ~/.local/bin is only on PATH because something put it there (the Claude Code
+// installer, on a machine that ran this app's bootstrap first), and a reader
+// working down the cards by hand reaches this one before that — so the card adds
+// it. Each line carries its own guard: the fnm eval is also what fnm's own docs
+// tell people to add, so a shared guard would match on any machine that already
+// has it and skip the PATH line on exactly the machines this needs to repair.
+const fnmShellHook = (rc: string) =>
+  `grep -q '.local/bin' ${rc} || printf '\\nexport PATH="$HOME/.local/bin:$PATH"\\n' >> ${rc}; grep -q 'fnm env --use-on-cd' ${rc} || printf 'eval "$(fnm env --use-on-cd)"\\n' >> ${rc}`
+
 // Same-origin like DETECT_ENDPOINT — the launcher scripts and the icon ship in
 // public/, so a paste reaches whichever origin served the page.
 const SITE = typeof location !== 'undefined' ? location.origin : 'https://rn-dev-onboarding.pages.dev'
@@ -176,6 +212,9 @@ export const TOOLS: Tool[] = [
     order: 1,
     docsUrl: 'https://brew.sh',
     note: 'macOS & Linux use Homebrew. Windows ships with winget; this command installs Chocolatey as an extra.',
+    // The installer sudos to create /opt/homebrew and also waits on a RETURN,
+    // so it strands an unattended run on the very first card.
+    elevated: true,
     // mac/linux only: this one card fronts three package managers, and on Windows
     // the name says winget while the button installs Chocolatey — no single number
     // describes that. Homebrew is unambiguous on the other two.
@@ -224,7 +263,7 @@ export const TOOLS: Tool[] = [
     order: 3,
     docsUrl: 'https://nodejs.org',
     version: { nodeLts: true },
-    note: 'Installs fnm + Node LTS (v24) and hooks your shell so `node` works in every new terminal.',
+    note: 'Installs fnm + Node LTS (v24) and hooks your shell so `node` works in every new terminal — and in tools that never open one, which is what the npx-based MCP servers need.',
     modal: {
       intro: 'fnm keeps Node versions side by side — each repo pins its own in a .nvmrc file, so upgrading one project never breaks another.',
       fields: [{ key: 'node-version', label: 'Node version', placeholder: '22' }],
@@ -237,9 +276,11 @@ export const TOOLS: Tool[] = [
       ],
     },
     actions: {
-      ...mac(cmd('brew install fnm && fnm install --lts && fnm default lts-latest && echo \'eval "$(fnm env --use-on-cd)"\' >> ~/.zshrc && eval "$(fnm env --use-on-cd)"')),
-      linux: cmd('curl -fsSL https://fnm.vercel.app/install | bash && fnm install --lts && fnm default lts-latest && echo \'eval "$(fnm env --use-on-cd)"\' >> ~/.bashrc && eval "$(fnm env --use-on-cd)"'),
-      ...win(cmd('winget install --id Schniz.fnm -e --accept-source-agreements --accept-package-agreements; $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User"); Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force; fnm install --lts; fnm default lts-latest; if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }; Add-Content $PROFILE \'fnm env --use-on-cd | Out-String | Invoke-Expression\'; fnm env --use-on-cd | Out-String | Invoke-Expression')),
+      // `;` not `&&`: the profile edit has to land even when the download fails,
+      // or `node` works in this terminal and nowhere else.
+      ...mac(cmd(`brew install fnm; fnm install --lts; fnm default lts-latest; ${FNM_STABLE_UNIX}; ${fnmShellHook('~/.zshrc')}; export PATH="$HOME/.local/bin:$PATH"; eval "$(fnm env --use-on-cd)"`)),
+      linux: cmd(`curl -fsSL https://fnm.vercel.app/install | bash; fnm install --lts; fnm default lts-latest; ${FNM_STABLE_UNIX}; ${fnmShellHook('~/.bashrc')}; export PATH="$HOME/.local/bin:$PATH"; eval "$(fnm env --use-on-cd)"`),
+      ...win(cmd('winget install --id Schniz.fnm -e --accept-source-agreements --accept-package-agreements; $env:Path = [Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [Environment]::GetEnvironmentVariable("Path","User"); Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force; fnm install --lts; fnm default lts-latest; [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$env:APPDATA\\fnm\\aliases\\default", "User"); if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }; Add-Content $PROFILE \'fnm env --use-on-cd | Out-String | Invoke-Expression\'; fnm env --use-on-cd | Out-String | Invoke-Expression')),
     },
   },
   {
@@ -346,17 +387,37 @@ export const TOOLS: Tool[] = [
   {
     id: 'jdk',
     category: 'essentials',
-    name: 'JDK 17 (Azul Zulu)',
+    name: 'JDK 17',
     description: 'Java 17 — the version React Native targets.',
     icon: 'coffee',
     order: 10,
-    docsUrl: 'https://www.azul.com/downloads/?version=java-17-lts&package=jdk',
-    version: { brew: 'zulu@17' },
-    note: 'React Native needs JDK 17 specifically, not the newest Java. The Windows command also sets JAVA_HOME, which Gradle and `react-native doctor` require — restart your terminal after.',
+    docsUrl: 'https://openjdk.org/projects/jdk/17/',
+    // One card, a different JDK per OS — Azul Zulu via cask, Microsoft's build via
+    // winget, the distro's OpenJDK via apt. They track the same upstream 17.0.x,
+    // but only the macOS one has a source worth badging: Windows publishes its
+    // number solely as folder names in winget-pkgs ([0021]) and apt's depends on
+    // the release.
+    version: { ...mac({ brew: 'zulu@17' }) },
+    note: 'React Native needs JDK 17 specifically, not the newest Java. On Windows, set JAVA_HOME after installing (second step below) — Gradle and `react-native doctor` both read it, and it must be set from your own shell, not an elevated one.',
+    sizeMb: 185,
+    // zulu@17 is a `pkg` cask. The formula openjdk@17 would avoid the prompt but
+    // is keg-only, and its own caveats want a sudo symlink for
+    // /usr/libexec/java_home to see it — so it trades one prompt for another
+    // plus a hardcoded JAVA_HOME.
+    elevated: true,
     actions: {
       ...mac(cmd('brew install --cask zulu@17')),
       linux: cmd('sudo apt-get install -y openjdk-17-jdk'),
-      ...win(cmd('winget install --id Microsoft.OpenJDK.17 -e --accept-source-agreements --accept-package-agreements; $jdk = Get-ChildItem "$env:ProgramFiles\\Microsoft" -Directory -Filter "jdk-17*" | Select-Object -First 1; [Environment]::SetEnvironmentVariable("JAVA_HOME", $jdk.FullName, "User")')),
+      ...win(cmd('winget install --id Microsoft.OpenJDK.17 -e --accept-source-agreements --accept-package-agreements')),
+    },
+    modal: {
+      intro: 'On Windows the install and the JAVA_HOME setting have to happen in separate shells.',
+      steps: [
+        {
+          command: { ...win(JAVA_HOME_WIN) },
+          note: 'Run this in your OWN PowerShell, not an elevated one — "User" scope writes to whichever account the shell belongs to, so from an Administrator window it lands in the admin\'s profile and yours never gets JAVA_HOME. Restart your terminal after.',
+        },
+      ],
     },
   },
   {
@@ -392,7 +453,7 @@ export const TOOLS: Tool[] = [
             'win-arm': `ssh-keygen -t ed25519 -C '{email}'; Get-Content $env:USERPROFILE\\.ssh\\id_ed25519.pub | clip`,
           },
           shellQuoted: true,
-          note: 'Run anywhere — the key is saved machine-wide in ~/.ssh and works for every repo. ssh-keygen asks a few questions (save location, passphrase); hit Enter at each to accept the defaults. Your public key lands on the clipboard (Linux: printed — copy it).',
+          note: 'Run anywhere — the key is saved for your whole account (`~/.ssh`, or `%USERPROFILE%\\.ssh` on Windows) and works for every repo. ssh-keygen asks a few questions (save location, passphrase); hit Enter at each to accept the defaults. Your public key lands on the clipboard (Linux: printed — copy it).',
         },
         {
           command: 'bitbucket.org → your avatar → Personal settings → SSH keys → Add key → paste',
@@ -414,6 +475,7 @@ export const TOOLS: Tool[] = [
     order: 1,
     docsUrl: 'https://code.visualstudio.com',
     version: { github: 'microsoft/vscode' },
+    sizeMb: 305,
     actions: {
       'mac-arm': link('https://update.code.visualstudio.com/latest/darwin-arm64/stable'),
       'mac-intel': link('https://update.code.visualstudio.com/latest/darwin/stable'),
@@ -435,6 +497,7 @@ export const TOOLS: Tool[] = [
     order: 2,
     docsUrl: 'https://cursor.com',
     version: { brew: 'cursor' },
+    sizeMb: 269,
     actions: {
       ...mac(link('https://cursor.com/downloads', 'Download Cursor')),
       linux: link('https://cursor.com/downloads', 'Download Cursor'),
@@ -453,15 +516,32 @@ export const TOOLS: Tool[] = [
     icon: 'apple',
     order: 3,
     docsUrl: 'https://developer.apple.com/xcode/',
+    // 3.5 GB for Xcode itself plus 8.5 GB for the iOS 26 simulator runtime.
+    sizeMb: 12000,
     actions: { ...mac(link('https://apps.apple.com/us/app/xcode/id497799835', 'Open in App Store')) },
     modal: {
-      intro: 'Install from the App Store (button on the card), then finish these two steps.',
+      intro: 'Install from the App Store (button on the card), then finish these steps.',
       steps: [
         { command: 'xcode-select --install', note: 'Installs the Command Line Tools — run in your terminal.' },
         {
+          command: 'sudo xcode-select -s /Applications/Xcode.app',
+          note: 'Points the toolchain at Xcode instead of the Command Line Tools — without it iOS builds fail even though Xcode is installed. Run it yourself in a terminal: it asks for your password, and it can only run once Xcode has finished downloading.',
+          userRun: true,
+        },
+        {
+          command: 'sudo xcodebuild -runFirstLaunch',
+          note: 'Installs the required components the first launch otherwise asks about. They land in root-owned /Library/Developer, so this needs your password — run it in the same terminal as the step above.',
+          userRun: true,
+        },
+        {
+          command: 'xcodebuild -downloadPlatform iOS',
+          note: 'Adds the iOS Simulator runtime — ~8.5 GB, the longest download in the whole setup. Check it landed with `xcrun simctl list runtimes`.',
+        },
+        {
           command: 'Xcode → Settings → Platforms → download iOS',
-          note: 'Adds the iOS Simulator. First launch also asks to install required components — accept.',
+          note: 'Only if the command above fails — same result, more clicks.',
           manual: true,
+          alt: true,
         },
       ],
     },
@@ -475,6 +555,8 @@ export const TOOLS: Tool[] = [
     order: 4,
     docsUrl: 'https://developer.android.com/studio',
     version: { brew: 'android-studio' },
+    // 1.4 GB for the dmg plus ~2 GB of SDK, emulator and system image.
+    sizeMb: 3500,
     actions: {
       ...mac(link('https://developer.android.com/studio', 'Download Android Studio')),
       linux: link('https://developer.android.com/studio', 'Download Android Studio'),
@@ -496,6 +578,7 @@ export const TOOLS: Tool[] = [
           command: 'More Actions → Virtual Device Manager → Create Device',
           note: 'Any Pixel is fine — this is the emulator your RN app runs on.',
           manual: true,
+          tooltip: 'Doing this from the command line instead? `avdmanager create avd` prints two `Error: Could not load devices from …/devices.xml` lines even when it succeeds — that file is optional and the system image ships none. Check `avdmanager list avd` rather than the exit output.',
         },
         {
           command: {
@@ -519,6 +602,9 @@ export const TOOLS: Tool[] = [
     order: 5,
     docsUrl: 'https://www.docker.com/products/docker-desktop/',
     version: { brew: 'docker-desktop' },
+    sizeMb: 550,
+    // Installs a privileged helper, so it asks twice on macOS.
+    elevated: true,
     actions: {
       'mac-arm': link('https://desktop.docker.com/mac/main/arm64/Docker.dmg'),
       'mac-intel': link('https://desktop.docker.com/mac/main/amd64/Docker.dmg'),
@@ -540,6 +626,7 @@ export const TOOLS: Tool[] = [
     order: 6,
     docsUrl: 'https://github.com/infinitered/reactotron/releases',
     version: { github: 'infinitered/reactotron' },
+    sizeMb: 112,
     actions: {
       ...mac(cmd('brew install --cask reactotron')),
       linux: link('https://github.com/infinitered/reactotron/releases', 'Download (releases)'),
@@ -558,6 +645,7 @@ export const TOOLS: Tool[] = [
     order: 7,
     docsUrl: 'https://www.mongodb.com/products/tools/compass',
     version: { github: 'mongodb-js/compass' },
+    sizeMb: 157,
     actions: {
       ...mac(link('https://www.mongodb.com/try/download/compass', 'Download Compass')),
       linux: link('https://www.mongodb.com/try/download/compass', 'Download Compass'),
@@ -577,6 +665,7 @@ export const TOOLS: Tool[] = [
     order: 8,
     docsUrl: 'https://www.pgadmin.org',
     version: { brew: 'pgadmin4' },
+    sizeMb: 222,
     actions: {
       ...mac(link('https://www.pgadmin.org/download/', 'Download pgAdmin')),
       linux: link('https://www.pgadmin.org/download/', 'Download pgAdmin'),
@@ -596,6 +685,7 @@ export const TOOLS: Tool[] = [
     order: 9,
     docsUrl: 'https://learning.postman.com',
     version: { brew: 'postman' },
+    sizeMb: 138,
     actions: {
       ...mac(link('https://www.postman.com/downloads/', 'Download Postman')),
       linux: link('https://www.postman.com/downloads/', 'Download Postman'),
@@ -615,6 +705,7 @@ export const TOOLS: Tool[] = [
     order: 10,
     docsUrl: 'https://termius.com',
     version: { brew: 'termius' },
+    sizeMb: 159,
     actions: {
       ...mac(link('https://termius.com/download', 'Download Termius')),
       linux: link('https://termius.com/download', 'Download Termius'),
@@ -651,6 +742,9 @@ export const TOOLS: Tool[] = [
     order: 12,
     docsUrl: 'https://www.zoho.com/cliq/',
     version: { brew: 'zoho-cliq' },
+    sizeMb: 108,
+    // pkg on macOS, but `Scope: user` in the winget manifest.
+    elevated: { ...mac(true) },
     actions: {
       ...mac(link('https://www.zoho.com/cliq/desktop/osx.html', 'Download Cliq')),
       linux: link('https://www.zoho.com/cliq/desktop/linux.html', 'Download Cliq'),
@@ -674,6 +768,11 @@ export const TOOLS: Tool[] = [
     // is only published as folder names in the winget-pkgs repo — a 63 KB
     // directory listing for one badge, declined in 0021.
     version: { ...mac({ brew: 'microsoft-teams' }) },
+    sizeMb: 332,
+    // macOS ships a pkg; the winget package is a user-scope MSIX with no
+    // ElevationRequirement, and a user MSIX installed from an elevated shell
+    // lands under the wrong account, so Windows must NOT be in the block.
+    elevated: { ...mac(true) },
     actions: {
       ...mac(link('https://www.microsoft.com/en-us/microsoft-teams/download-app', 'Download Teams')),
       linux: link('https://www.microsoft.com/en-us/microsoft-teams/download-app', 'Download Teams'),
@@ -693,6 +792,7 @@ export const TOOLS: Tool[] = [
     order: 14,
     docsUrl: 'https://slack.com/downloads',
     version: { brew: 'slack' },
+    sizeMb: 111,
     actions: {
       'mac-arm': link('https://slack.com/ssb/download-osx-silicon'),
       'mac-intel': link('https://slack.com/ssb/download-osx'),
@@ -875,7 +975,10 @@ export const TOOLS: Tool[] = [
     modal: {
       intro: 'Teaches Claude a disciplined workflow: brainstorm → plan → TDD → verify. Send each command as its own prompt in Claude Code.',
       steps: [
-        { command: '/plugin marketplace add obra/superpowers-marketplace', note: 'Send this as its own prompt.' },
+        // Full HTTPS URL, not the owner/repo shorthand: the shorthand can resolve
+        // to SSH, and a machine set up by this app has a key for Bitbucket, not
+        // GitHub, so the clone fails on host-key or publickey.
+        { command: '/plugin marketplace add https://github.com/obra/superpowers-marketplace.git', note: 'Send this as its own prompt.' },
         { command: '/plugin install superpowers@superpowers-marketplace', note: 'Then send this as a separate prompt.' },
       ],
     },
@@ -893,7 +996,7 @@ export const TOOLS: Tool[] = [
     modal: {
       intro: 'A lazy-senior-dev mindset: no speculative abstractions, no scaffolding for later, standard library before a new dependency. Send each command as its own prompt in Claude Code.',
       steps: [
-        { command: '/plugin marketplace add DietrichGebert/ponytail', note: 'Send this as its own prompt.' },
+        { command: '/plugin marketplace add https://github.com/DietrichGebert/ponytail.git', note: 'Send this as its own prompt.' },
         { command: '/plugin install ponytail@ponytail', note: 'Then send this as a separate prompt.' },
       ],
     },
@@ -910,7 +1013,7 @@ export const TOOLS: Tool[] = [
     modal: {
       intro: 'Our frontend design skill — treats React Native as a first-class stack.',
       steps: [
-        { command: '/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill', note: 'Send as its own prompt.' },
+        { command: '/plugin marketplace add https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git', note: 'Send as its own prompt.' },
         { command: '/plugin install ui-ux-pro-max@ui-ux-pro-max-skill', note: 'Then a separate prompt.' },
       ],
     },
@@ -927,9 +1030,9 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://context7.com',
     note: 'Stops Claude using outdated APIs. A free key (context7.com) raises rate limits.',
     actions: {
-      ...mac(cmd('claude mcp add --transport http context7 https://mcp.context7.com/mcp')),
-      linux: cmd('claude mcp add --transport http context7 https://mcp.context7.com/mcp'),
-      ...win(cmd('claude mcp add --transport http context7 https://mcp.context7.com/mcp')),
+      ...mac(cmd('claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp')),
+      linux: cmd('claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp'),
+      ...win(cmd('claude mcp add --scope user --transport http context7 https://mcp.context7.com/mcp')),
     },
   },
   {
@@ -942,9 +1045,9 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://github.com/atlassian/atlassian-mcp-server',
     note: 'Approve the OAuth prompt in your browser. One connection covers Bitbucket, Jira & Confluence.',
     actions: {
-      ...mac(cmd('claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse')),
-      linux: cmd('claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse'),
-      ...win(cmd('claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse')),
+      ...mac(cmd('claude mcp add --scope user --transport sse atlassian https://mcp.atlassian.com/v1/sse')),
+      linux: cmd('claude mcp add --scope user --transport sse atlassian https://mcp.atlassian.com/v1/sse'),
+      ...win(cmd('claude mcp add --scope user --transport sse atlassian https://mcp.atlassian.com/v1/sse')),
     },
   },
   {
@@ -957,7 +1060,7 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://github.com/getsentry/XcodeBuildMCP',
     version: { npm: 'xcodebuildmcp' },
     note: 'Requires macOS 14.5+ and Xcode 16+.',
-    actions: { ...mac(cmd('claude mcp add XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp')) },
+    actions: { ...mac(cmd('claude mcp add --scope user XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp')) },
   },
   {
     id: 'android-dev-mcp',
@@ -973,7 +1076,7 @@ export const TOOLS: Tool[] = [
       prereq: 'Android Studio card done first — this needs adb on PATH, ANDROID_HOME set, and a running emulator or connected device.',
       steps: [
         { command: 'adb devices', note: 'Verify the prerequisites — your emulator or device should be listed.' },
-        { command: 'claude mcp add android-dev -- npx -y android-dev-mcp-server', note: 'Then register the server.' },
+        { command: 'claude mcp add --scope user android-dev -- npx -y android-dev-mcp-server', note: 'Then register the server.' },
       ],
     },
   },
@@ -988,7 +1091,7 @@ export const TOOLS: Tool[] = [
     modal: {
       intro: 'Pull Sentry crash issues, with full context, straight into Claude.',
       steps: [
-        { command: 'claude mcp add --transport http sentry https://mcp.sentry.dev/mcp', note: 'Register the server.' },
+        { command: 'claude mcp add --scope user --transport http sentry https://mcp.sentry.dev/mcp', note: 'Register the server.' },
         { command: 'claude mcp login sentry', note: 'Authenticate in the browser window it opens.' },
       ],
     },
@@ -1006,7 +1109,7 @@ export const TOOLS: Tool[] = [
       intro: 'Pull Crashlytics crash issues into Claude via the Firebase CLI.',
       steps: [
         { command: 'npx -y firebase-tools@latest login', note: 'The MCP server reuses your Firebase CLI credentials.' },
-        { command: 'claude mcp add firebase -- npx -y firebase-tools@latest mcp', note: 'Then register the server.' },
+        { command: 'claude mcp add --scope user firebase -- npx -y firebase-tools@latest mcp', note: 'Then register the server.' },
       ],
     },
   },
@@ -1023,7 +1126,7 @@ export const TOOLS: Tool[] = [
       prereq: 'Figma desktop app (latest) with a Dev or Full seat.',
       steps: [
         { command: 'Figma → menu → Preferences → Enable Dev Mode MCP Server', note: 'Do this in the Figma desktop app first.', manual: true },
-        { command: 'claude mcp add --transport http figma-dev-mode http://127.0.0.1:3845/mcp', note: 'Then run this in your terminal.' },
+        { command: 'claude mcp add --scope user --transport http figma-dev-mode http://127.0.0.1:3845/mcp', note: 'Then run this in your terminal.' },
       ],
     },
   },
@@ -1053,11 +1156,17 @@ export const TOOLS: Tool[] = [
     docsUrl: 'https://www.zoho.com/cliq/help/platform/connect-zoho-cliq-mcp-with-claude.html',
     modal: {
       intro: 'Summarize channels, post messages, and search chats from Claude.',
-      prereq: 'A Zoho account with Cliq.',
-      fields: [{ key: 'mcp-url', label: 'Your Zoho MCP URL', placeholder: 'https://mcp.zoho.com/…' }],
+      prereq: 'A Zoho account with Cliq, on a plan that includes Zoho MCP (licensed separately — your Zoho admin can confirm).',
+      fields: [{ key: 'mcp-url', label: 'Your Zoho MCP URL', placeholder: 'https://…zohomcp.com/mcp/…' }],
       steps: [
-        { command: 'Zoho MCP console → Add Tools → Cliq → copy the server URL', note: 'Generate your MCP URL first and paste it in the field above.', manual: true },
-        { command: `claude mcp add --transport http zoho-cliq '{mcp-url}'`, note: 'Then approve OAuth.', shellQuoted: true },
+        {
+          command: 'mcp.zoho.com → Create MCP server → Zoho Cliq → tick the tools → Connect tab → copy the URL',
+          note: 'Use Create MCP server, not a pre-configured one: the pre-configured "Cliq Messaging" server authenticates and then exposes zero tools. Match your data centre (mcp.zoho.eu / .in / .com.au).',
+          manual: true,
+          link: { href: 'https://mcp.zoho.com', label: 'Zoho MCP console' },
+          tooltip: 'Cliq offers 302 actions and every one costs context. Enough for team chat: get messages, list chats, list channels, channel info, list users, and the two post-message tools if you want Claude replying.',
+        },
+        { command: `claude mcp add --scope user --transport http zoho-cliq '{mcp-url}'`, note: 'Then approve OAuth.', shellQuoted: true },
       ],
     },
   },
@@ -1072,10 +1181,14 @@ export const TOOLS: Tool[] = [
     version: { npm: '@floriscornel/teams-mcp' },
     modal: {
       intro: 'Connects Claude to Microsoft Graph — Teams chats, channels, users, and files. Community package.',
-      prereq: 'A Microsoft 365 work account.',
+      prereq: 'A Microsoft 365 work account. Signing into the Teams desktop app grants this nothing — it talks to Microsoft Graph and needs its own consent. In a managed tenant an Entra admin must approve the Microsoft first-party app "Microsoft Graph Command Line Tools" (14d82eec-204b-4c2f-b7e8-296a70dab67e) before the sign-in can complete; it uses delegated permissions only, so it can never do more than you can.',
       steps: [
-        { command: 'claude mcp add teams -- npx -y @floriscornel/teams-mcp@latest', note: 'Register the server.' },
-        { command: 'Ask Claude to authenticate with Teams, then finish the device-code sign-in in your browser.', note: 'One-time — tokens are cached and refreshed.', manual: true },
+        { command: 'claude mcp add --scope user teams -- npx -y @floriscornel/teams-mcp@latest', note: 'Register the server.' },
+        {
+          command: 'npx @floriscornel/teams-mcp@latest authenticate',
+          note: 'Run this in a real terminal — it prints a device code for your browser, so it needs a window Claude does not have. One-time; tokens are cached and refreshed.',
+          tooltip: 'If it stops at "Need admin approval", the tenant consent above is missing — the command itself worked. Nothing you or Claude can do gets past that.',
+        },
       ],
     },
   },
@@ -1091,7 +1204,7 @@ export const TOOLS: Tool[] = [
       intro: "Postman's official remote MCP server — collections, environments, and workspaces from Claude.",
       prereq: 'A Postman account.',
       steps: [
-        { command: 'claude mcp add --transport http postman https://mcp.postman.com/mcp', note: 'Register the server.' },
+        { command: 'claude mcp add --scope user --transport http postman https://mcp.postman.com/mcp', note: 'Register the server.' },
         { command: 'Approve the OAuth sign-in prompt in your browser on first use.', manual: true },
       ],
     },

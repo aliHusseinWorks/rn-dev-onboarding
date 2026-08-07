@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { categoryProgress } from '../lib/commands'
+import { categoryProgress, toolsMatching } from '../lib/commands'
 import type { PlatformId } from '../lib/platform'
 import type { Category } from '../lib/tools'
 
@@ -7,13 +7,14 @@ interface Props {
   categories: Category[]
   platform: PlatformId
   installed: Record<string, boolean>
+  query: string
 }
 
 // The rail's job below xl, where there is no room for a sidebar: jump, and mark
 // the chip you tapped so the jump is acknowledged. Still no scroll-spy — a
 // highlight tracking the scroll would have to drag the strip along to keep itself
 // visible, out from under the thumb panning it. A tap moves it, nothing else does.
-export function CategoryChips({ categories, platform, installed }: Props) {
+export function CategoryChips({ categories, platform, installed, query }: Props) {
   const [tapped, setTapped] = useState<string | null>(null)
 
   return (
@@ -23,16 +24,19 @@ export function CategoryChips({ categories, platform, installed }: Props) {
     >
       {categories.map((category) => {
         const { done, total } = categoryProgress(category.id, platform, installed)
+        const present = toolsMatching(category, query).length > 0
+        const isTapped = present && tapped === category.id
         return (
           <button
             key={category.id}
+            disabled={!present}
             onClick={() => {
               setTapped(category.id)
               document.getElementById(category.id)?.scrollIntoView()
             }}
-            aria-current={tapped === category.id || undefined}
-            className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer ${
-              tapped === category.id
+            aria-current={isTapped || undefined}
+            className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 ${
+              isTapped
                 ? 'border-border-strong bg-muted text-fg'
                 : 'border-border bg-surface text-fg-muted hover:border-border-strong hover:text-fg'
             }`}

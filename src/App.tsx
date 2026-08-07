@@ -275,7 +275,7 @@ export function App() {
             </button>
           </Tooltip>
         </div>
-        <CategoryChips categories={sortedCategories} platform={platform} installed={installed} />
+        <CategoryChips categories={sortedCategories} platform={platform} installed={installed} query={query} />
         {/* Below xl there's no rail to hold the count, so the bar's own bottom
             edge becomes the progress. It sits on the border, costing no height. */}
         <div

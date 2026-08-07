@@ -1,5 +1,5 @@
 import { CheckCheck, ChevronDown } from 'lucide-react'
-import { categoryProgress, isAvailable, matchesQuery, toolsInCategory } from '../lib/commands'
+import { categoryProgress, isAvailable, toolsMatching } from '../lib/commands'
 import { toolIcon } from '../lib/icons'
 import { PLATFORM_INFO, type PlatformId } from '../lib/platform'
 import type { Category } from '../lib/tools'
@@ -19,7 +19,7 @@ interface Props {
 }
 
 export function CategorySection({ category, platform, installed, query, open, onToggleOpen, onToggle, onSetMany, onOpenModal }: Props) {
-  const tools = toolsInCategory(category.id).filter((t) => matchesQuery(t, category, query))
+  const tools = toolsMatching(category, query)
 
   if (tools.length === 0) return null
 
