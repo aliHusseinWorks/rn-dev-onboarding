@@ -6,7 +6,7 @@ Agentic toolkit by Software Mansion that lets Claude Code drive, debug, and prof
 
 ## What it is
 
-An MCP server + skills that give the agent direct access to iOS Simulators and Android Emulators. The point is a closed loop: the agent that writes the code also runs it, drives the UI, reads the logs, and verifies the fix — in one session.
+An MCP server + skills that give the agent direct access to iOS Simulators, Android emulators, and physical Android devices. The point is a closed loop: the agent that writes the code also runs it, drives the UI, reads the logs, and verifies the fix — in one session.
 
 **What it can do:**
 
@@ -19,7 +19,7 @@ An MCP server + skills that give the agent direct access to iOS Simulators and A
 - Record and replay flows
 - Profile — Hermes, React DevTools, Instruments, Perfetto
 
-**Platforms:** iOS Simulator + Android Emulator. **No physical devices.**
+**Platforms:** iOS Simulator, Android Emulator, and physical Android devices over adb. **No physical iOS devices.**
 
 **Cost:** Free. No account, no API key. Runs locally over MCP stdio.
 
@@ -181,9 +181,11 @@ Delegate it:
 
 **Maestro** — YAML E2E flows, has its own MCP server (`claude mcp add maestro -- maestro mcp`). Only does UI; can't see logs or network. It's a CI regression artifact, not a debugger. Add it later, if and when you want a fixed bug to stay fixed on every PR. Not needed for local work.
 
-**Appium** — WebDriver-based, cross-platform, mature. But it's a test *executor*, not a diagnostic tool, and it's slow: it goes through XCUITest, which context-switches between runner and app on every interaction. Argent talks to the simulator directly. Appium is the right answer only for physical devices, cloud device farms, an existing suite with QA owning it, or non-RN native apps in the same pipeline.
+**Appium** — WebDriver-based, cross-platform, mature. But it's a test *executor*, not a diagnostic tool, and it's slow: it goes through XCUITest, which context-switches between runner and app on every interaction. Argent talks to the simulator directly. Appium is the right answer only for physical iOS devices, cloud device farms, an existing suite with QA owning it, or non-RN native apps in the same pipeline.
 
 **Detox** — only if you already have a suite. For new work, Maestro YAML is less painful.
+
+**Android Dev MCP** (`android-dev-mcp-server`) — the one I actually had installed, and dropped. It overlaps Argent on everything you reach for (boot, install, launch, tap, screenshot, UI dump, logcat) while being an `adb` wrapper: a fresh `adb` process per action (~100–200ms) and a `uiautomator` dump per screen read (1–5s), which is why tapping through a login flow felt slow. It has no network capture and no JS layer. Its only unique pieces are Metro's lifecycle — which I run myself in its own terminal anyway — plus ANR traces and `bugreport`, both one `adb` command away. Physical Android was the argument I thought kept it; Argent does that too. Worth re-adding only if you want Metro driven from the agent.
 
 ---
 

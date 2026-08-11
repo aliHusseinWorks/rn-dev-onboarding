@@ -1,6 +1,6 @@
 # 0041 — Argent is a repo-scoped card, not an MCP one
 
-Date: 2026-08-10 · Status: accepted
+Date: 2026-08-10 · Status: accepted · its physical-device claim is corrected by [0044](0044-android-dev-mcp-is-removed-argent-supersedes-it.md)
 
 ## Context
 

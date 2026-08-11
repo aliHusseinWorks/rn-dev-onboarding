@@ -1,6 +1,6 @@
 # 0043 — MCP scope follows the server's subject
 
-Date: 2026-08-11 · Status: accepted · Supersedes the every-card half of [0036](0036-mcp-servers-register-at-user-scope.md)
+Date: 2026-08-11 · Status: accepted · Supersedes the every-card half of [0036](0036-mcp-servers-register-at-user-scope.md) · its Android Dev half and its physical-device claim are corrected by [0044](0044-android-dev-mcp-is-removed-argent-supersedes-it.md)
 
 ## Context
 

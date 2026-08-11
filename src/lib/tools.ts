@@ -1064,25 +1064,6 @@ export const TOOLS: Tool[] = [
     actions: { ...mac(cmd('claude mcp add --scope project XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp')) },
   },
   {
-    id: 'android-dev-mcp',
-    category: 'mcp',
-    name: 'Android Dev MCP',
-    description: 'Run, drive & debug Android devices and emulators from Claude.',
-    icon: 'smartphone',
-    order: 4,
-    inScript: false,
-    docsUrl: 'https://github.com/kingbin/android-dev-mcp-server',
-    version: { npm: 'android-dev-mcp-server' },
-    modal: {
-      intro: 'Screenshots, screen interaction, logcat, crash diagnostics, and React Native helpers over ADB. Community package.',
-      prereq: 'Android Studio card done first — this needs adb on PATH, ANDROID_HOME set, and a running emulator or connected device. Run this inside the repo you want it in — it registers into the repo, not your machine.',
-      steps: [
-        { command: 'adb devices', note: 'Verify the prerequisites — your emulator or device should be listed.' },
-        { command: 'claude mcp add --scope project android-dev -- npx -y android-dev-mcp-server', note: 'Then register the server.' },
-      ],
-    },
-  },
-  {
     id: 'sentry-mcp',
     category: 'mcp',
     name: 'Sentry',

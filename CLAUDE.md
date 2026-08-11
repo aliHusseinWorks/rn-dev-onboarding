@@ -18,8 +18,10 @@ comments — is `.claude/rules/code-style.md`; the trust-boundary invariants are
 `.claude/rules/security.md`. Claude Code loads both on its own when you touch a
 file they cover, so they are not restated here or in `docs/ARCHITECTURE.md`.
 `.claude/settings.json` enforces the parts that shouldn't depend on good
-behaviour: history rewrites and non-pnpm installs are denied, editing an
-existing `docs/decisions/` file asks first, and finishing a session that touched
+behaviour: history rewrites and non-pnpm installs are denied, editing an existing
+`docs/decisions/` file through `Edit` asks first — a scripted write goes around
+that, so the rule in [0019](docs/decisions/0019-graphify-removed.md) is what
+actually holds the line — and finishing a session that touched
 `src/` or `functions/` without a `CHANGELOG.md` line for today is blocked
 ([0030](docs/decisions/0030-conventions-as-rules-and-hooks.md)).
 
