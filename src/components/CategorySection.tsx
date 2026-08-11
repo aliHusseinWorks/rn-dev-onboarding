@@ -61,7 +61,6 @@ export function CategorySection({ category, platform, installed, query, open, on
           <Tooltip
             label={allDone ? 'Clear the installed checkmarks in this section.' : 'Check off every tool in this section as installed.'}
             side="bottom"
-            align="end"
             className="shrink-0"
           >
             <button

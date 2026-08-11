@@ -182,3 +182,25 @@ this file exists only because this repo has no board.
       frame, a non-image returns null. Both installers then produced a shortcut
       whose icon Explorer draws — Windows shortcut on the OneDrive-redirected
       Desktop, Linux `.desktop` with the icon byte-identical to the download.
+- [ ] The Argent card has never been run against a real bare-RN repo. Everything
+      verified so far is static: the data invariants, and that it stays out of the
+      AI-setup prompt and the scan script on all five platforms. What matters is
+      untested — that the prompt writes the two constants files and the skill,
+      that `/memory` shows both `@` imports expanded, that with no emulator booted
+      it boots the AVD named in `docs/dev-setup.local.md` and derives the build
+      command from gradle, and that a deliberately wrong AVD name makes it list
+      the real ones and stop rather than substitute one. Blocked on having an RN
+      repo to hand; the steps are in
+      `superpowers/plans/2026-08-10-argent-card.md` Task 4.
+- [ ] `Tooltip`'s panel carries `role="tooltip"` but nothing links it to its
+      trigger, so a screen reader never announces it. Pre-existing, and mostly
+      harmless because the label usually duplicates the trigger's `aria-label` —
+      except for the three header buttons in `App.tsx`, where the tooltip is the
+      only descriptive text there is. One `useId` plus `aria-describedby` closes
+      it; left alone here because it was outside the blast radius of
+      [0042](decisions/0042-floating-layers-portal-to-the-body.md).
+- [ ] Maestro, later — emitting a YAML flow on a pass so a fixed bug stays fixed
+      on every PR. Deliberately out of the Argent card: `argent-guide.md` places
+      it as a CI regression artifact, not a debugger, and it sees neither logs nor
+      network. Worth a card only once someone wants PR-time regression checks
+      ([0041](decisions/0041-argent-is-a-repo-scoped-card-not-an-mcp-one.md)).

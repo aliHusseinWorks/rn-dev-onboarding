@@ -144,3 +144,51 @@ Any hook that needs the tool input parses the hook JSON on stdin, so write it as
 
 PHASE 3 — REPORT
 Print a tree of what was created (and anything you skipped, because it already existed or because this repo gave it nothing to do), plus a one-line summary per rule, hook, skill and agent — for each hook, state that you ran it and what it did. Do not modify a single line of application code during this setup.`
+
+// Prompt for the "Argent — verify on a device" card: paste into Claude Code
+// inside an RN repo where `argent init --local` has already run. It writes the
+// constants and the verify skill, after which the card is not opened again.
+export const ARGENT_SETUP_PROMPT = `Argent is installed in this React Native repo. Set up the constants it needs and the verify skill that drives it. Derive everything you can from the repo itself and ask me only what the repo cannot tell you.
+
+PHASE 1 — READ THE REPO
+Find every build target and its bundle identifier.
+- iOS: \`xcodebuild -list -workspace ios/*.xcworkspace\` for the schemes (\`-project ios/*.xcodeproj\` if there is no workspace), then PRODUCT_BUNDLE_IDENTIFIER per configuration from \`xcodebuild -showBuildSettings\` or the pbxproj.
+- Android: applicationId plus every productFlavor's applicationId or applicationIdSuffix from android/app/build.gradle (or build.gradle.kts).
+Several schemes or flavors means this is a multi-bundle repo — white-label, tenant-per-app, staging versus prod. List every one of them. Same codebase, different IDs, and nothing on a simulator says which one a task means.
+Skip the iOS half if there is no ios/ directory, and the Android half if there is no android/.
+
+PHASE 2 — ASK ME, ONCE
+Put all of these in a single message and wait for my answer. Do not ask them one at a time.
+1. Which scheme or flavor do you use for local development? Show me the list you found and let me pick.
+2. Which iOS simulator should be the default? Run \`xcrun simctl list devices available\` and show me what this machine has.
+3. Which Android AVD should be the default? Run \`emulator -list-avds\` and show me what exists. Copy the name exactly — an AVD name is whatever I typed when I created it, and a wrong one wastes a turn.
+4. A test account that skips onboarding, as email and password — or "none".
+Drop question 2 if there is no ios/, and question 3 if there is no android/.
+
+PHASE 3 — WRITE
+docs/dev-setup.md — committed. The schemes/flavors and bundle IDs you found, one line each, with the local-dev default marked. Repo facts only: nothing per-developer, nothing secret.
+docs/dev-setup.local.md — never committed, because it holds the test account. Ignore it BEFORE it exists: append \`docs/dev-setup.local.md\` to .gitignore, run \`git check-ignore -v docs/dev-setup.local.md\`, and only write the file once that prints a match. Do not judge by eye whether an existing rule already covers it — \`*.local\`, \`*.local.*\` and \`docs/*.local\` all look like they do and none of them match this name. Written first and ignored second, a failed or interrupted run leaves a plaintext password in the working tree for the next \`git add -A\` to sweep up. Then write it: the simulator name, the AVD name, and the test account.
+CLAUDE.md — append these two lines, and do not remove, reorder or rewrite anything already in the file:
+Bundle IDs and build targets: @docs/dev-setup.md
+Local devices and test account: @docs/dev-setup.local.md
+The \`@\` is what expands the file at launch. A prose mention like "see docs/dev-setup.md" does nothing, because CLAUDE.md is static text injected at startup and an instruction to read a file never executes. If there is no CLAUDE.md, create one holding just those two lines under a \`## Dev setup\` heading. Tell me to check \`/memory\` afterwards to confirm both expanded.
+.claude/skills/verify/SKILL.md — the skill in PHASE 4.
+
+PHASE 4 — THE VERIFY SKILL
+Write .claude/skills/verify/SKILL.md opening with YAML frontmatter between --- fences, holding exactly these two keys:
+name: verify
+description: Use when verifying a bug is fixed, checking a feature still works, or reading device and network logs after reproducing something by hand — drives the app through Argent on an iOS Simulator or Android Emulator and reports a verdict with evidence.
+Then a body encoding exactly these rules. Keep every one; they are observed failure modes, not preferences. Write them in this repo's voice and substitute this repo's real paths wherever a rule names a file.
+- Never run without a pass condition. The dominant failure is declaring victory: given a vague goal it fixes something, sees a plausible screen and reports success. If I did not state a pass condition, derive one and state it back before touching anything.
+- Reconcile reference data against reality before acting on it. Resolve targets to udids first. If nothing is booted, boot the device named in docs/dev-setup.local.md for that platform. If that name does not exist on this machine, list what does and stop — never substitute a device I did not choose.
+- Derive the build command from android/app/build.gradle and \`xcodebuild -list\` every time, never from memory. Read docs/RUNNING.md, if it exists, only for what those two cannot state: which flavor is used for local dev, and manual steps such as copying .env.example. Treat every build fact in it as advisory; the repo wins any disagreement.
+- One device to a verdict at a time, never interleaved. Every Argent interaction tool takes a udid and dispatches on its shape — a UUID is an iOS simulator, anything else an Android adb serial — so several devices in one run are mechanically fine. The failure is attention, not capability: asked for two platforms at once it verifies one properly and hand-waves the other. Report a separate verdict with its own evidence per device, and where evidence was not gathered say so rather than reporting a pass. Prefer one device while iterating on a diagnosis, several only for a final confirmation.
+- Attach to the running app. Rebuild only when code changed — iOS builds are slow enough that the difference dominates the loop.
+- Name Argent explicitly when reaching for logs, or the model shells out to raw \`adb logcat\`, which works but loses JS-layer detail and network payloads.
+- If I already reproduced it by hand, do not drive. Read the last few minutes of device log and network traffic and report what failed. Ask soon after the repro: OS log buffers roll over regardless of tooling.
+- Add testIDs when an element cannot be found reliably. Naming is \`screen-element\`, stable and semantic — never index-based, never derived from visible text. One screen at a time as it is debugged, not a backfill. On Android testID lands on the view tag and some third-party components swallow it, so add accessibilityLabel as a fallback when something is findable on iOS but not Android.
+- One target per run. Long autonomous loops drift as build-test-fix-rebuild burns context.
+The skill states no policy on how much to fix without asking. That is ordinary judgement plus the session's permission mode, and a rule here would only re-implement it worse.
+
+PHASE 5 — REPORT
+Print what you created or appended to, and what you skipped because it already existed. Then show me the one-line request I would make next, using this repo's real local-dev flavor and the device I picked. Do not modify any application code during this setup.`

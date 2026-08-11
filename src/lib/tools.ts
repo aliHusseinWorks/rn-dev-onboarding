@@ -1,5 +1,5 @@
 import type { PlatformId } from './platform'
-import { PLUGIN_BUILD_PROMPT, RUN_DOCS_PROMPT, SETUP_PROMPT } from './setupPrompt'
+import { ARGENT_SETUP_PROMPT, PLUGIN_BUILD_PROMPT, RUN_DOCS_PROMPT, SETUP_PROMPT } from './setupPrompt'
 import type { VersionSource } from './versions'
 
 export interface ToolAction {
@@ -1057,10 +1057,11 @@ export const TOOLS: Tool[] = [
     description: 'Build, run & test iOS from Claude (macOS).',
     icon: 'apple',
     order: 3,
+    inScript: false,
     docsUrl: 'https://github.com/getsentry/XcodeBuildMCP',
     version: { npm: 'xcodebuildmcp' },
-    note: 'Requires macOS 14.5+ and Xcode 16+.',
-    actions: { ...mac(cmd('claude mcp add --scope user XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp')) },
+    note: 'Requires macOS 14.5+ and Xcode 16+. Run this inside the repo you want it in — it registers into the repo, not your machine.',
+    actions: { ...mac(cmd('claude mcp add --scope project XcodeBuildMCP -- npx -y xcodebuildmcp@latest mcp')) },
   },
   {
     id: 'android-dev-mcp',
@@ -1069,14 +1070,15 @@ export const TOOLS: Tool[] = [
     description: 'Run, drive & debug Android devices and emulators from Claude.',
     icon: 'smartphone',
     order: 4,
+    inScript: false,
     docsUrl: 'https://github.com/kingbin/android-dev-mcp-server',
     version: { npm: 'android-dev-mcp-server' },
     modal: {
       intro: 'Screenshots, screen interaction, logcat, crash diagnostics, and React Native helpers over ADB. Community package.',
-      prereq: 'Android Studio card done first — this needs adb on PATH, ANDROID_HOME set, and a running emulator or connected device.',
+      prereq: 'Android Studio card done first — this needs adb on PATH, ANDROID_HOME set, and a running emulator or connected device. Run this inside the repo you want it in — it registers into the repo, not your machine.',
       steps: [
         { command: 'adb devices', note: 'Verify the prerequisites — your emulator or device should be listed.' },
-        { command: 'claude mcp add --scope user android-dev -- npx -y android-dev-mcp-server', note: 'Then register the server.' },
+        { command: 'claude mcp add --scope project android-dev -- npx -y android-dev-mcp-server', note: 'Then register the server.' },
       ],
     },
   },
@@ -1087,11 +1089,13 @@ export const TOOLS: Tool[] = [
     description: 'Pull crash issues with full context into Claude.',
     icon: 'bug',
     order: 5,
+    inScript: false,
     docsUrl: 'https://mcp.sentry.dev',
     modal: {
       intro: 'Pull Sentry crash issues, with full context, straight into Claude.',
+      prereq: 'Run this inside the repo you want it in — it registers into the repo, not your machine. The first Claude session there asks you to approve the repo\u2019s servers — approve before logging in.',
       steps: [
-        { command: 'claude mcp add --scope user --transport http sentry https://mcp.sentry.dev/mcp', note: 'Register the server.' },
+        { command: 'claude mcp add --scope project --transport http sentry https://mcp.sentry.dev/mcp', note: 'Register the server.' },
         { command: 'claude mcp login sentry', note: 'Authenticate in the browser window it opens.' },
       ],
     },
@@ -1103,13 +1107,15 @@ export const TOOLS: Tool[] = [
     description: 'Pull Crashlytics crash issues into Claude.',
     icon: 'activity',
     order: 6,
+    inScript: false,
     docsUrl: 'https://firebase.google.com/docs/crashlytics/ai-assistance-mcp',
     version: { npm: 'firebase-tools' },
     modal: {
       intro: 'Pull Crashlytics crash issues into Claude via the Firebase CLI.',
+      prereq: 'Run this inside the repo you want it in — it registers into the repo, not your machine.',
       steps: [
         { command: 'npx -y firebase-tools@latest login', note: 'The MCP server reuses your Firebase CLI credentials.' },
-        { command: 'claude mcp add --scope user firebase -- npx -y firebase-tools@latest mcp', note: 'Then register the server.' },
+        { command: 'claude mcp add --scope project firebase -- npx -y firebase-tools@latest mcp', note: 'Then register the server.' },
       ],
     },
   },
@@ -1240,12 +1246,54 @@ export const TOOLS: Tool[] = [
     },
   },
   {
+    id: 'argent',
+    category: 'project',
+    name: 'Argent — verify on a device',
+    description: 'Drive the app, read logs, prove the fix.',
+    icon: 'gauge',
+    order: 3,
+    docsUrl: 'https://argent.swmansion.com',
+    version: { npm: '@swmansion/argent' },
+    note: 'Run the Team setup prompt first — both write into .claude/, and nothing merges them.',
+    modal: {
+      intro: 'Where react-native doctor stops. Argent drives simulators and emulators, reads device logs and network traffic at the JS and native layers, and attaches a debugger. Free and local. The last step sets the repo up once; after that you just ask Claude to verify something.',
+      prereq: 'Repo cloned. App builds by hand. Xcode, or Android Studio with an AVD. Node 18+. Metro running.',
+      steps: [
+        {
+          command: 'npx @swmansion/argent@latest init --local',
+          note: 'In your terminal — an interactive wizard.',
+          userRun: true,
+          tooltip:
+            '--local pins Argent in devDependencies and commits the MCP config, so teammates get the same version. Its licence is mixed: Apache 2.0 source, proprietary simulator-server and devtools binaries.',
+        },
+        {
+          command: 'git status && git diff',
+          note: 'init writes .mcp.json, .argent/ and its own .claude/ files. Revert what you did not want.',
+        },
+        {
+          command: 'Restart Claude Code, then ask what Argent can do.',
+          manual: true,
+          tooltip:
+            'Telemetry is on by default — usage and diagnostics, not your source. Turn it off with: argent telemetry disable',
+        },
+        {
+          command: ARGENT_SETUP_PROMPT,
+          note: 'Reads your build targets, asks four questions, writes the constants and a verify skill.',
+          label: 'Copy prompt',
+          multiline: true,
+          download: true,
+          filename: 'argent-setup-prompt.md',
+        },
+      ],
+    },
+  },
+  {
     id: 'team-plugin',
     category: 'project',
     name: 'Team plugin',
     description: 'One repo of shared guards — created once, installed by everyone.',
     icon: 'package-2',
-    order: 3,
+    order: 4,
     docsUrl: 'https://code.claude.com/docs/en/plugin-marketplaces',
     note: 'Lives on your machine, not in your repos — a plugin never writes a file into the project it works on.',
     modal: {

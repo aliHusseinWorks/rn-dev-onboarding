@@ -1,6 +1,6 @@
 # 0036 — MCP servers register at user scope
 
-Date: 2026-08-07 · Status: accepted
+Date: 2026-08-07 · Status: accepted · its every-card claim is narrowed by [0043](0043-mcp-scope-follows-the-servers-subject.md)
 
 ## Context
 

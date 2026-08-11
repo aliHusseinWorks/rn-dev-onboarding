@@ -35,8 +35,9 @@ export interface DetectSpec {
 }
 
 // Detection config lives here, not on the Tool, so tools.ts stays a pure
-// "what to install" table. Tools without an entry (per-project prompts)
-// can't be seen from outside and are simply left out of the scan.
+// "what to install" table. Tools without an entry are simply left out of the
+// scan: per-project prompts, and the MCP servers that register at project scope,
+// whose .mcp.json lives in a repo a home-directory scan never sees.
 export const DETECT_SPECS: Record<string, DetectSpec> = {
   homebrew: { bins: ['brew'], winBins: ['choco'] },
   git: { bins: ['git'] },
@@ -155,10 +156,6 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   'ui-ux-pro-max': { claudePlugin: 'ui-ux-pro-max@' },
   context7: { claudeConfig: '"context7"' },
   'atlassian-mcp': { claudeConfig: '"atlassian"' },
-  'xcodebuild-mcp': { claudeConfig: '"XcodeBuildMCP"' },
-  'android-dev-mcp': { claudeConfig: '"android-dev"' },
-  'sentry-mcp': { claudeConfig: '"sentry"' },
-  'firebase-mcp': { claudeConfig: '"firebase"' },
   'figma-mcp': { claudeConfig: '"figma-dev-mode"' },
   'slack-mcp': { claudePlugin: 'slack@claude-plugins-official' },
   'zoho-cliq-mcp': { claudeConfig: '"zoho-cliq"' },

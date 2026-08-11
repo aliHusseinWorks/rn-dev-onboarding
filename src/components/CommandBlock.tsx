@@ -49,7 +49,7 @@ export function CommandBlock({
           <span className="font-mono text-xs text-fg-subtle">{filename}</span>
           <div className="flex items-center gap-1">
             {download && (
-              <Tooltip label={`Download ${filename}`} align="end">
+              <Tooltip label={`Download ${filename}`}>
                 <button
                   onClick={downloadFile}
                   aria-label={`Download ${filename}`}
@@ -59,7 +59,7 @@ export function CommandBlock({
                 </button>
               </Tooltip>
             )}
-            <Tooltip label={tip} align="end">
+            <Tooltip label={tip}>
               <button
                 onClick={() => copy(command)}
                 aria-label={label}
@@ -82,7 +82,7 @@ export function CommandBlock({
       <code className="cmd-scroll mask-r-from-[calc(100%-2.5rem)] min-w-0 flex-1 overflow-x-auto whitespace-nowrap px-3 py-2 font-mono text-[13px] text-fg-muted">
         {display ?? command}
       </code>
-      <Tooltip label={tip} align="end" className="self-stretch border-l border-border">
+      <Tooltip label={tip} className="self-stretch border-l border-border">
         <button
           onClick={() => copy(command)}
           aria-label={label}

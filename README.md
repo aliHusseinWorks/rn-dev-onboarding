@@ -61,7 +61,7 @@ Two flags decide whether a tool appears in the generated prompt's front matter r
 - `sizeMb` — feeds the modal's download warning. Only worth setting above a few hundred MB; the total is deliberately a floor ([0039](docs/decisions/0039-the-estimate-names-its-download-total.md)).
 
 **Ripple checklist** — a tool change isn't done until everything consuming it is updated:
-1. `DETECT_SPECS` in `src/lib/detect.ts` — how the detect scan finds it (bin on PATH, install dir, Store package, `~/.claude.json` needle for MCP servers, `~/.claude/settings.json` needle for plugins). No spec = silently left out of the scan.
+1. `DETECT_SPECS` in `src/lib/detect.ts` — how the detect scan finds it (bin on PATH, install dir, Store package, `~/.claude.json` needle for user-scoped MCP servers, `~/.claude/settings.json` needle for plugins). No spec = silently left out of the scan, which is correct for a project-scoped MCP server: its `.mcp.json` lives in a repo the scan can't see.
 2. The AI-setup prompt derives from `tools.ts` automatically — but eyeball it if the tool has unusual steps (manual/`docsOnly` flags, fields), and check the STEP 0 block and download warning if you touched `elevated` or `sizeMb`. The whole prompt is dumpable without a browser: `tsc --ignoreConfig src/lib/aiSetup.ts --outDir <tmp> --module commonjs --moduleResolution node --skipLibCheck`, then `require` it and call `generateAiSetup('mac-arm')`.
 3. One line in `docs/CHANGELOG.md`, under today's `## YYYY-MM-DD` heading.
 
@@ -69,11 +69,11 @@ Add a **category** by appending to `CATEGORIES` (id, title, description, `accent
 
 ## Detect installed tools
 
-The **Detect installed** button generates a readable scan script (PowerShell on Windows, POSIX sh on macOS/Linux). The user pastes it into their terminal once; it checks each tool (PATH lookup, install-dir existence, Windows Store package, MCP servers via `~/.claude.json`, Claude Code plugins via `~/.claude/settings.json`) and reports back — the page polls and ticks the checkboxes live. The modal stays deliberately simple: one line saying what's covered; the script itself, with a comment per check, is the full transparency artifact. Only per-project steps (scaffolding, doctor runs, team prompts) can't be scanned.
+The **Detect installed** button generates a readable scan script (PowerShell on Windows, POSIX sh on macOS/Linux). The user pastes it into their terminal once; it checks each tool (PATH lookup, install-dir existence, Windows Store package, MCP servers via `~/.claude.json`, Claude Code plugins via `~/.claude/settings.json`) and reports back — the page polls and ticks the checkboxes live. The modal stays deliberately simple: one line saying what's covered; the script itself, with a comment per check, is the full transparency artifact. Only per-project steps can't be scanned — scaffolding, doctor runs, team prompts, and the MCP cards that register at project scope.
 
 **Privacy:** the only data that leaves the machine is a one-time pairing code, the platform id (e.g. `mac-arm`), and the ids of tools found. Codes are single-use; the relay stores a result for at most 10 minutes.
 
-Detection specs live in `src/lib/detect.ts` (`DETECT_SPECS` — separate from `tools.ts` on purpose). Tools without a spec (per-project prompts) are simply not scanned.
+Detection specs live in `src/lib/detect.ts` (`DETECT_SPECS` — separate from `tools.ts` on purpose). Tools without a spec are simply not scanned: per-project prompts, and project-scoped MCP servers ([0043](docs/decisions/0043-mcp-scope-follows-the-servers-subject.md)).
 
 The relay lives in `functions/report/[code].ts` and deploys **with the site** as a Cloudflare Pages Function — same origin, so the deployed site needs zero configuration. If the relay is unreachable (local `pnpm dev` without wrangler, or before the KV namespace exists) the feature degrades gracefully: the script prints a `RN-ONBOARD/1 …` line the user pastes back manually.
 

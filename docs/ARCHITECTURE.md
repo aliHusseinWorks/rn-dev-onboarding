@@ -39,7 +39,8 @@ src/
     commands.ts         pure helpers over tools.ts (resolve actions, availability)
     platform.ts         OS/arch detection (UA + WebGL + UA-CH quirks)
     aiSetup.ts          "Full AI setup" prompt builder
-    setupPrompt.ts      team prompts (workspace setup, plugin fill, run-docs)
+    setupPrompt.ts      team prompts (workspace setup, plugin build, run-docs,
+                        Argent setup)
     tokens.tsx          {token} fill/render helpers
     iconImage.ts        canvas resize + PNG-in-ICO packing for dropped icons
     useCopy.ts, useLocalStorage.ts, useDetectSession.ts   hooks (tuple returns like React's)
@@ -52,6 +53,13 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
                       SETUP-RUN-FINDINGS.md is a one-off field report from running
                       the generated AI setup end to end; its open rows live in
                       TODO.md, so it is a record rather than a working document
+                      argent-guide.md is field notes on one tool, the source the
+                      Argent card's prompt and skill derive from — same standing
+                      as SETUP-RUN-FINDINGS.md, a record rather than a contract
+  superpowers/          specs/ and plans/ from the brainstorming and writing-plans
+                        workflow: the design a card was argued into, then the
+                        task-by-task plan. Both are history once shipped; what
+                        survives is the decisions/ file and the card itself
 .claude/              the team's committed Claude Code wiring:
   rules/                code-style.md, security.md — path-scoped, auto-loaded
   hooks/guard.mjs       the two rules context can't guarantee (see settings.json)
@@ -76,6 +84,7 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
 | One modal that serves two audiences, or a command with two forms | a `kind: 'choice'` `ModalField` (renders `SegmentedControl`) plus `whenFieldIs` on the steps it gates ([0034](decisions/0034-modal-modes-are-a-choice-field.md)) | a tab component, or a second card saying the same thing twice |
 | A caveat only some readers need | `tooltip` on the step, behind an info icon | a longer `note`, or prose above the steps |
 | Overlays | `Modal` component | new modal implementations |
+| Anything that has to float above the page (tooltip, popover) | `createPortal` to the body plus `position: fixed` and a viewport clamp, as `Tooltip` does ([0042](decisions/0042-floating-layers-portal-to-the-body.md)) | positioning it in place — `Modal`'s scrolling box clips it, and any `backdrop-blur` ancestor silently becomes its containing block |
 | Server-side anything | a Pages Function under `functions/` bound in `wrangler.toml` | separate services |
 
 ## Code conventions

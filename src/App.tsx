@@ -232,7 +232,6 @@ export function App() {
           <Tooltip
             label="Two pastes: install Claude Code, then hand it a prompt that installs and verifies everything else for you."
             side="bottom"
-            align="end"
             className="shrink-0"
           >
             <button
@@ -247,7 +246,6 @@ export function App() {
           <Tooltip
             label="One paste in your terminal: a readable script checks which tools are already installed and this page ticks them off by itself."
             side="bottom"
-            align="end"
             className="shrink-0"
           >
             <button
@@ -262,7 +260,6 @@ export function App() {
           <Tooltip
             label={allCollapsed ? 'Open every category.' : 'Fold every category to just its header.'}
             side="bottom"
-            align="end"
             className="shrink-0"
           >
             <button
@@ -434,11 +431,6 @@ export function App() {
                     </span>
                   )}
                   {step.note && <span>{renderTokens(step.note, modalFields, fieldValues)}</span>}
-                  {/* A step carrying a tooltip needs a short note: the panel is
-                      centred on this icon and `Modal`'s content box is
-                      overflow-hidden on the x axis, so a note long enough to push
-                      the icon near either edge gets the panel cut rather than
-                      repositioned. */}
                   {step.tooltip && (
                     <Tooltip label={step.tooltip} className="shrink-0">
                       <button

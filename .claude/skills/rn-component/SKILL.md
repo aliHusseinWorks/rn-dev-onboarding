@@ -14,7 +14,8 @@ This is a Vite + React 19 web app, not a React Native project (see CLAUDE.md). C
 
 ## Reference files — imitate these exactly
 
-- `src/components/Tooltip.tsx` — smallest complete example: local `interface Props`, defaulted optional props, one why-comment.
+- `src/components/SegmentedControl.tsx` — smallest complete example: local `interface Props`, one why-comment, no state.
+- `src/components/Tooltip.tsx` — defaulted optional props, and measurement in a `useLayoutEffect` with symmetric listener cleanup.
 - `src/components/CommandBlock.tsx` — a component with variants (`subtle`, `multiline`) handled by early return and small class-string consts.
 - `src/components/ToolCard.tsx` — the largest: derived consts at the top, conditional blocks in JSX, token classes throughout, `aria-*` on interactive icons.
 
@@ -26,7 +27,7 @@ This is a Vite + React 19 web app, not a React Native project (see CLAUDE.md). C
 - Icons: `lucide-react` with numeric `size` (13–22 matches existing usage).
 - Interactivity: `aria-label` on icon-only buttons, `aria-pressed`/`aria-expanded` where state toggles. Event cleanup in `useEffect` return, as in `Modal.tsx` and `ScrollTop.tsx`.
 - Local handlers are `const` arrows; keep derived values as plain consts above the JSX (`const expanded = …`), not memoized unless the existing file being touched already memoizes.
-- Comments: almost none. Only a short one when a choice would puzzle a reader (see the `align` comment in `Tooltip.tsx`). Never narrate the JSX.
+- Comments: almost none. Only a short one when a choice would puzzle a reader (see the `wide` prop comment in `Modal.tsx`). Never narrate the JSX.
 - Format: no semicolons, single quotes, trailing commas, 2-space indent.
 
 Wire the component into its parent the way `App.tsx` does — direct import from `./components/X`, conditional render with `&&` for overlays.
