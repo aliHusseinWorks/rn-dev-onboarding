@@ -157,7 +157,7 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   ponytail: { claudePlugin: 'ponytail@' },
   'ui-ux-pro-max': { claudePlugin: 'ui-ux-pro-max@' },
   context7: { claudeConfig: '"context7"' },
-  'atlassian-mcp': { claudeConfig: '"atlassian"' },
+  'atlassian-mcp': { claudeConfig: 'mcp-server-atlassian' },
   'figma-mcp': { claudeConfig: '"figma-dev-mode"' },
   'slack-mcp': { claudePlugin: 'slack@claude-plugins-official' },
   'zoho-cliq-mcp': { claudeConfig: 'zohomcp.com' },

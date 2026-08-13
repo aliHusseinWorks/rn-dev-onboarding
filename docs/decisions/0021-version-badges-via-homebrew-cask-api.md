@@ -1,6 +1,6 @@
 # 0021 — Version badges for GUI apps come from the Homebrew cask API
 
-Date: 2026-07-27 · Status: accepted
+Date: 2026-07-27 · Status: accepted · its Atlassian exclusion no longer holds, see [0046](0046-atlassian-authenticates-with-a-scoped-api-token.md)
 
 ## Context
 

@@ -1040,16 +1040,60 @@ export const TOOLS: Tool[] = [
   {
     id: 'atlassian-mcp',
     category: 'mcp',
-    name: 'Atlassian (Jira + Confluence)',
-    description: 'Issues, pages, and search from Claude.',
+    name: 'Atlassian',
+    description: 'Jira, Confluence and Bitbucket from Claude.',
     icon: 'git-pull-request',
     order: 2,
-    docsUrl: 'https://support.atlassian.com/atlassian-rovo-mcp-server/docs/setting-up-clients/',
-    note: 'Approve the OAuth prompt in your browser. It offers Jira, Confluence and Compass only — Bitbucket tools exist on this server but authenticate by API token, so an org that has not enabled that gets no Bitbucket at all, on an otherwise healthy connection.',
-    actions: {
-      ...mac(cmd('claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp')),
-      linux: cmd('claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp'),
-      ...win(cmd('claude mcp add --scope user --transport http atlassian https://mcp.atlassian.com/v1/mcp')),
+    docsUrl: 'https://github.com/aashari/mcp-server-atlassian-bitbucket',
+    version: { npm: '@aashari/mcp-server-atlassian-bitbucket' },
+    note: 'Community packages rather than Atlassian\'s own: three servers by one maintainer, holding a token stored in cleartext in ~/.claude.json with write access to all three products. Atlassian\'s Rovo server gates Bitbucket per organisation, so an org that has not enabled it gets none at all.',
+    inScript: false,
+    modal: {
+      intro: 'One token, then one command per product you want.',
+      fields: [
+        { key: 'email', label: 'Atlassian account email', placeholder: 'you@company.com' },
+        { key: 'token', label: 'API token, from step 1', placeholder: 'ATATT3xFfGF0…' },
+        { key: 'site', label: 'Site, from your Jira or Confluence URL', placeholder: 'yourteam' },
+      ],
+      steps: [
+        {
+          command: 'Create API token with scopes → name it → shortest expiry you can live with → pick the product → tick its scopes → copy it.',
+          note: 'Get a token.',
+          manual: true,
+          link: { href: 'https://id.atlassian.com/manage-profile/security/api-tokens', label: 'Atlassian API tokens' },
+          tooltip: 'Atlassian shows the token once, so copy it before leaving the page, and one token covers all three products. Scopes cannot be changed later, so tick everything you will want. Jira: read:jira-work, write:jira-work, read:jira-user. Confluence: read:confluence-content.all, write:confluence-content, read:confluence-space.summary. Bitbucket, each suffixed :bitbucket: read:repository, write:repository, read:pullrequest, write:pullrequest, read:user.',
+        },
+        {
+          command: 'Run these yourself in a terminal. Any one product works alone, the same token covers all three, and the token should not go into a chat.',
+          note: 'Add a server.',
+          manual: true,
+          tooltip: 'The -e flags have to come after the server name: -e takes repeated values, so a name placed after them is read as one more environment variable and the command fails.',
+        },
+        {
+          command: `claude mcp add --scope user bitbucket -e ATLASSIAN_USER_EMAIL='{email}' -e ATLASSIAN_API_TOKEN='{token}' -- npx -y @aashari/mcp-server-atlassian-bitbucket`,
+          note: 'Bitbucket, which needs no site.',
+          alt: true,
+          shellQuoted: true,
+        },
+        {
+          command: `claude mcp add --scope user jira -e ATLASSIAN_SITE_NAME='{site}' -e ATLASSIAN_USER_EMAIL='{email}' -e ATLASSIAN_API_TOKEN='{token}' -- npx -y @aashari/mcp-server-atlassian-jira`,
+          note: 'Jira.',
+          alt: true,
+          shellQuoted: true,
+        },
+        {
+          command: `claude mcp add --scope user confluence -e ATLASSIAN_SITE_NAME='{site}' -e ATLASSIAN_USER_EMAIL='{email}' -e ATLASSIAN_API_TOKEN='{token}' -- npx -y @aashari/mcp-server-atlassian-confluence`,
+          note: 'Confluence.',
+          alt: true,
+          shellQuoted: true,
+        },
+        {
+          command: 'Restart Claude Code, then ask for one real issue, page or pull request.',
+          note: 'Prove it works.',
+          manual: true,
+          tooltip: 'A tool list is read when a client connects, so a server added mid-session stays invisible until a restart. Connected only means the process started and answered; whether the token is valid is what one real call settles.',
+        },
+      ],
     },
   },
   {
