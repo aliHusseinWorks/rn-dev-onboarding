@@ -945,6 +945,8 @@ export const TOOLS: Tool[] = [
         },
         {
           command: {
+            'mac-arm': HERDR_LAUNCH_UNIX_ICON,
+            'mac-intel': HERDR_LAUNCH_UNIX_ICON,
             linux: HERDR_LAUNCH_UNIX_ICON,
             'win-x64': HERDR_LAUNCH_WIN_ICON,
             'win-arm': HERDR_LAUNCH_WIN_ICON,

@@ -1,6 +1,6 @@
 # 0010 — The herdr launcher is a hosted script run in one paste, and modal fields gain an image kind
 
-Date: 2026-07-25 · Status: accepted
+Date: 2026-07-25 · Status: accepted · its macOS-icon half is superseded by [0045](0045-the-macos-launcher-is-an-osacompile-applet.md)
 
 ## Context
 

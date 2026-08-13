@@ -5,6 +5,12 @@ user-visible change grouped Added / Changed / Removed / Fixed in that order. Wri
 the line under today's date as part of the change, creating the heading if today
 has none yet ([0024](decisions/0024-changelog-is-dated-by-day.md)).
 
+## 2026-08-13
+
+### Changed
+
+- The macOS herdr launcher is a `herdr.app` carrying its own icon, where it was a `herdr.command` that could only ever show the generic Terminal one. Windows and Linux already had icons, so this is macOS catching up rather than a new idea, and the artefact is renamed: anyone who ran the old launcher keeps a working `herdr.command` beside the new bundle, which the script now says out loud rather than deleting a file it did not create this run. Two findings are why it is not simpler. A hand-rolled bundle whose `CFBundleExecutable` is a shell script is refused by Launch Services with `-10669`, each other candidate ruled out separately, because it wants a Mach-O — `osacompile` supplies Apple's own already-signed applet. Replacing `applet.icns` is then still not enough: `osacompile` ships an `Assets.car` holding the same applet icon plus a `CFBundleIconName` pointing at it, and that key outranks `CFBundleIconFile`, so the first build showed the white AppleScript scroll with a correct icns sitting unread beside it. `sips -s format icns` cannot do the conversion alone either, rejecting any non-square source and any square one whose side is not a standard icon size, 37×37 included, so the source is padded to square with `sips -p`, which keeps alpha and matches the letterboxing the page's own resize does, then scaled per size into `iconutil`. All three tools are base macOS, so nothing new is required. The card's custom-icon field now appears on macOS, where the icon-carrying step had listed no mac keys and so filtered itself out ([0045](decisions/0045-the-macos-launcher-is-an-osacompile-applet.md)).
+
 ## 2026-08-11
 
 ### Changed

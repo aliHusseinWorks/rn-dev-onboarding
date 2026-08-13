@@ -160,10 +160,29 @@ this file exists only because this repo has no board.
 - [x] herdr launcher — custom icon by drag-and-drop ([0010](decisions/0010-hosted-launcher-script-and-image-fields.md)).
       Landed as a generic `kind: 'image'` modal field rather than per-tool UI, so
       the "no per-tool UI" convention held.
-- [ ] herdr launcher — icon on macOS is still unimplemented. The `.command` keeps
-      the generic Terminal icon; stamping one needs `osascript`/JXA + `sips` (or
-      an `.app` bundle) and can't be tested from Windows. The icon field
-      self-hides there, so nothing misleads the user in the meantime.
+- [x] herdr launcher — macOS gets an icon. It is an `osacompile` applet with its
+      `applet.icns` replaced, not the `.command` this item assumed: a hand-rolled
+      bundle whose `CFBundleExecutable` is a shell script is refused by Launch
+      Services with `-10669`, and replacing the icns alone leaves the applet icon
+      showing because `osacompile` also ships an `Assets.car` and a
+      `CFBundleIconName` outranking `CFBundleIconFile`. The custom-icon field now
+      appears on macOS, where the icon-carrying step previously had no mac keys
+      ([0045](decisions/0045-the-macos-launcher-is-an-osacompile-applet.md)).
+- [ ] The macOS launcher hardcodes `Terminal.app`. There is no reliable way to ask
+      macOS which terminal a user prefers, so anyone living in iTerm gets Terminal
+      for this one launcher
+      ([0045](decisions/0045-the-macos-launcher-is-an-osacompile-applet.md)).
+- [ ] The macOS launcher is ad-hoc signed, not notarised. Built locally by a script
+      the reader ran, so it carries no quarantine attribute and Gatekeeper stays
+      quiet — but copying one machine's `herdr.app` to another would be challenged,
+      which is not a route the card offers
+      ([0045](decisions/0045-the-macos-launcher-is-an-osacompile-applet.md)).
+- [ ] The Linux `.desktop` still writes `Exec=herdr` bare while macOS and Windows
+      both pin herdr's absolute path, for the reason
+      [0037](decisions/0037-node-needs-a-path-outside-fnms-per-shell-dir.md) found.
+      A desktop entry is usually started with the session PATH, so the bare name
+      probably resolves — probably, on a platform none of this was tested on, which
+      is why it was left alone rather than changed to match.
 - [ ] The Stop hook in `.claude/hooks/guard.mjs` only asks whether *anything* is
       logged under today's heading, so once one line exists every later session
       that day passes for free. Catching per-change gaps means knowing which
