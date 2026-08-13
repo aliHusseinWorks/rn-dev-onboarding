@@ -192,6 +192,15 @@ this file exists only because this repo has no board.
       the real ones and stop rather than substitute one. Blocked on having an RN
       repo to hand; the steps are in
       `superpowers/plans/2026-08-10-argent-card.md` Task 4.
+- [ ] `CLAUDE.md` claims editing an existing `docs/decisions/` file through `Edit`
+      asks first, and `.claude/settings.json` now carries
+      `"ask": ["Edit(/docs/decisions/**)"]` to back it. Unverified: whether an
+      `ask` rule actually prompts under `permissions.defaultMode: "auto"` was never
+      tested, because the session that added it started before this repo existed,
+      so its project settings were never loaded — `npm --version` ran despite an
+      explicit deny. Settle it from a session started inside the repo: confirm the
+      file loads at all (`npm --version` must be denied), then edit a decision
+      file. If it does not prompt, delete the claim rather than keep the rule.
 - [ ] `Tooltip`'s panel carries `role="tooltip"` but nothing links it to its
       trigger, so a screen reader never announces it. Pre-existing, and mostly
       harmless because the label usually duplicates the trigger's `aria-label` —

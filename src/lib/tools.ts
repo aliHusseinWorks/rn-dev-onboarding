@@ -1140,7 +1140,7 @@ export const TOOLS: Tool[] = [
     description: 'Team chat, tickets and more from Claude.',
     icon: 'message-circle',
     order: 9,
-    docsUrl: 'https://www.zoho.com/cliq/help/platform/connect-zoho-cliq-mcp-with-claude.html',
+    docsUrl: 'https://www.zoho.com/mcp/',
     note: 'One server per Zoho app. A single server carrying two apps loaded 166 tools, and the console has no bulk untick — so pick the tools while creating it.',
     modal: {
       intro: 'One server per Zoho app, each created in the console at mcp.zoho.com — Cliq for team chat, Sprints for tickets, and whatever else your plan includes, so you can add, drop or disable them independently. Step 1 is where both boxes below get their values.',

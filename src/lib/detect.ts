@@ -26,7 +26,9 @@ export interface DetectSpec {
   // MSIX/Store package name (Get-AppxPackage) — Windows only.
   winAppx?: string
   // Substring searched in ~/.claude.json (fixed-string match) — how MCP
-  // servers ("server-key") are detected.
+  // servers are detected. Usually the quoted server key, because the card
+  // dictates the name; a card that lets the reader name the server has to match
+  // something the reader cannot change, such as the vendor's host.
   claudeConfig?: string
   // Plugins are read from ~/.claude/settings.json instead: ~/.claude.json only
   // gains an entry for a plugin once it has been used, so a fresh install reads
@@ -158,7 +160,7 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   'atlassian-mcp': { claudeConfig: '"atlassian"' },
   'figma-mcp': { claudeConfig: '"figma-dev-mode"' },
   'slack-mcp': { claudePlugin: 'slack@claude-plugins-official' },
-  'zoho-cliq-mcp': { claudeConfig: '"zoho-cliq"' },
+  'zoho-cliq-mcp': { claudeConfig: 'zohomcp.com' },
   'teams-mcp': { claudeConfig: '"teams"' },
   'postman-mcp': { claudeConfig: '"postman"' },
 }
