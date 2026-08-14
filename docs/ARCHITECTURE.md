@@ -64,7 +64,8 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
   rules/                code-style.md, security.md — path-scoped, auto-loaded
   hooks/guard.mjs       the two rules context can't guarantee (see settings.json)
   settings.json         permissions.deny + hook registration
-  skills/              rn-component, rn-screen, api-integration, new-feature, fix-bug
+  skills/              rn-component, rn-screen, api-integration, new-feature, fix-bug,
+                        browser-check (cdp.mjs drives a real browser, no dependency)
   agents/              architect, code-reviewer, consistency-checker, security-reviewer
 ```
 
@@ -86,6 +87,7 @@ docs/                 ALL project docs: ARCHITECTURE.md, CHANGELOG.md, TODO.md,
 | Overlays | `Modal` component | new modal implementations |
 | Anything that has to float above the page (tooltip, popover) | `createPortal` to the body plus `position: fixed` and a viewport clamp, as `Tooltip` does ([0042](decisions/0042-floating-layers-portal-to-the-body.md)) | positioning it in place — `Modal`'s scrolling box clips it, and any `backdrop-blur` ancestor silently becomes its containing block |
 | Server-side anything | a Pages Function under `functions/` bound in `wrangler.toml` | separate services |
+| Confirming a UI change actually renders, or reading console/network errors | the `browser-check` skill — `.claude/skills/browser-check/cdp.mjs` over the DevTools Protocol | adding Playwright/Puppeteer for a one-off check, or claiming `pnpm build` proves the UI works |
 
 ## Code conventions
 
