@@ -149,7 +149,7 @@ export const DETECT_SPECS: Record<string, DetectSpec> = {
   // a machine that has herdr and restores every pane as a bare shell ([0029]).
   herdr: {
     macPaths: ['~/.claude/hooks/herdr-agent-state.sh'],
-    winPaths: ['$env:USERPROFILE\\.claude\\hooks\\herdr-agent-state.sh'],
+    winPaths: ['$env:USERPROFILE\\.claude\\hooks\\herdr-agent-state.ps1'],
     linuxPaths: ['~/.claude/hooks/herdr-agent-state.sh'],
   },
   fastlane: { bins: ['fastlane'] },

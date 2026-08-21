@@ -27,14 +27,20 @@ import { useLocalStorage } from './lib/useLocalStorage'
 const PLATFORM_KEY = 'rn-onboard:platform'
 const YEAR = new Date().getFullYear()
 
-function readSavedPlatform(): PlatformId | null {
+// A saved override only outranks detection while it agrees on the OS. It exists
+// to correct the arch — an Intel Mac read as Apple Silicon — and a "show me the
+// macOS commands" from another day would otherwise keep handing sh one-liners to
+// a PowerShell, which fail halfway through rather than not at all.
+function readSavedPlatform(detected: PlatformId): PlatformId | null {
   const saved = localStorage.getItem(PLATFORM_KEY)
-  return saved && (PLATFORMS as readonly string[]).includes(saved) ? (saved as PlatformId) : null
+  if (!saved || !(PLATFORMS as readonly string[]).includes(saved)) return null
+  const id = saved as PlatformId
+  return PLATFORM_INFO[id].os === PLATFORM_INFO[detected].os ? id : null
 }
 
 export function App() {
   const [detected, setDetected] = useState<PlatformId>(() => detectPlatform())
-  const [platform, setPlatformState] = useState<PlatformId>(() => readSavedPlatform() ?? detectPlatform())
+  const [platform, setPlatformState] = useState<PlatformId>(() => readSavedPlatform(detected) ?? detected)
   const [installed, setInstalled] = useLocalStorage<Record<string, boolean>>('rn-onboard:installed', {})
   const [query, setQuery] = useState('')
   const [modalToolId, setModalToolId] = useState<string | null>(null)
@@ -59,7 +65,7 @@ export function App() {
   useEffect(() => {
     void refinePlatform(detected).then((p) => {
       setDetected(p)
-      if (!readSavedPlatform()) setPlatformState(p)
+      if (!readSavedPlatform(p)) setPlatformState(p)
     })
     // run once on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps

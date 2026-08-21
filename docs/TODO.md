@@ -177,6 +177,17 @@ this file exists only because this repo has no board.
       quiet — but copying one machine's `herdr.app` to another would be challenged,
       which is not a route the card offers
       ([0045](decisions/0045-the-macos-launcher-is-an-osacompile-applet.md)).
+- [ ] Reported once, unreproduced: after `herdr upgrade`, the Windows launcher
+      does not start herdr, and running `herdr` from a shell then opens it with
+      every pane a bare shell. The launcher half is not ruled in — the `.lnk` it
+      writes was parsed and stores `%LOCALAPPDATA%/Programs/Herdr/bin/herdr.exe`
+      unresolved, and that `bin` is a junction the upgrade repoints, so the
+      target survives a version bump. What is ruled in is the second half: the
+      integration hook is versioned and a stale one stops reporting silently,
+      which is why the card's step now says to re-run it and names `herdr
+      integration status`. Catching it properly needs the state captured across
+      an upgrade — `integration status` and the `.lnk` target before and after —
+      rather than reasoning after the fact.
 - [ ] The Linux `.desktop` still writes `Exec=herdr` bare while macOS and Windows
       both pin herdr's absolute path, for the reason
       [0037](decisions/0037-node-needs-a-path-outside-fnms-per-shell-dir.md) found.

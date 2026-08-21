@@ -5,6 +5,20 @@ user-visible change grouped Added / Changed / Removed / Fixed in that order. Wri
 the line under today's date as part of the change, creating the heading if today
 has none yet ([0024](decisions/0024-changelog-is-dated-by-day.md)).
 
+## 2026-08-21
+
+### Fixed
+
+- A platform override saved in `localStorage` no longer outranks detection across an OS boundary. Selecting macOS once — the only reason the selector gets touched while writing a card — kept every later visit on the same Windows machine serving `sh` one-liners, and the herdr card's icon step was copied that way and pasted into PowerShell, where `ICO=$(mktemp); printf %s '…' | base64 -d > "$ICO"; curl … | sh` half-runs and reports four separate errors, the last of them a `Remove-Item -f` read as `-Filter`. `readSavedPlatform` now takes the detected platform and ignores a saved value whose OS disagrees, which keeps the case the selector exists for — `macIsAppleSilicon()` guesses `mac-arm` when the WebGL renderer tells it nothing, so an Intel Mac needs a correction that sticks — and drops the case that can only be curiosity or a mistake. The banner already said `Selected:` and offered the detected platform as a button in that state; that was not enough, because a command is copied from the step and not from the header above it. `sessionStorage` was rejected for killing the Intel-Mac correction along with the bug ([0047](decisions/0047-a-saved-platform-override-is-scoped-to-its-os.md)).
+
+- `herdr-launcher.ps1` refuses a `-IconFile` that is not an `.ico`, where it checked the magic number on the `-IconUrl` path alone. The shell does not validate a shortcut's icon: the wrong container draws a blank page with no error, so a hand-passed `.png` got one. Nothing the page emits can reach that — the `.ps1` line exists only under the Windows keys, where `iconFormatFor` returns `ico` — so this is hardening a hand-typed argument, not a route out of the override bug above. The check moved below both branches and names the file it rejected.
+
+- The detect scan finds herdr's integration on Windows. `DETECT_SPECS.herdr.winPaths` looked for `~/.claude/hooks/herdr-agent-state.sh`; herdr writes `.ps1` there, so the scan reported every correctly configured Windows machine as missing the hook that [0029](decisions/0029-herdr-persistence-needs-the-integration-not-config.md) put the card's first step there to install.
+
+### Changed
+
+- The herdr card's integration step says to run it again after upgrading herdr, and names `herdr integration status` as the way to tell. The hook it installs is versioned — `HERDR_INTEGRATION_VERSION` in the file, `current (v8)` in the status output — and a stale one has no way to say so, which would read exactly like never having run the step: tabs and folders come back, every pane is a bare shell. The versioning is verified; that it is what cost the reported sessions is not — reinstalling overwrites the file, so the version at the time of the failure is gone. Parked in `TODO.md` as unreproduced.
+
 ## 2026-08-13
 
 ### Added

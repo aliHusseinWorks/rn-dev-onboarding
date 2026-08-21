@@ -46,18 +46,28 @@ if ($IconFile) {
   }
   Copy-Item -LiteralPath $IconFile -Destination $tmp -Force
 } else {
-  # Fetched aside and checked before it counts, so a bad response can't replace a
-  # working icon. A missing asset answers with the SPA's HTML, so look for the
-  # .ico magic number rather than trusting the 200.
+  # Fetched aside so a bad response can't replace a working icon. A missing asset
+  # answers with the SPA's HTML, so the check below is what makes the 200 mean
+  # anything.
   Invoke-WebRequest -UseBasicParsing -Uri $IconUrl -OutFile $tmp
-  # ReadAllBytes, not Get-Content -Encoding Byte: that switch is 5.1-only and
-  # throws under PowerShell 7, which aborts before the shortcut is written.
-  $head = [IO.File]::ReadAllBytes($tmp)
-  if ($head.Length -lt 4 -or $head[0] -ne 0 -or $head[1] -ne 0 -or $head[2] -ne 1 -or $head[3] -ne 0) {
-    Remove-Item -LiteralPath $tmp -Force
+}
+
+# A shortcut's icon is not validated by the shell: the wrong container gets no
+# error and draws a blank page, so check the .ico magic number here. This applies
+# to -IconFile too, which only a hand-typed path reaches: the page emits this
+# script for Windows alone, where the icon it builds is already an .ico.
+# ReadAllBytes, not Get-Content -Encoding Byte: that switch is 5.1-only and
+# throws under PowerShell 7, which aborts before the shortcut is written.
+$head = [IO.File]::ReadAllBytes($tmp)
+if ($head.Length -lt 4 -or $head[0] -ne 0 -or $head[1] -ne 0 -or $head[2] -ne 1 -or $head[3] -ne 0) {
+  Remove-Item -LiteralPath $tmp -Force
+  if ($IconFile) {
+    Write-Host "That file is not an .ico: $IconFile"
+    Write-Host 'The card builds one when Windows is the selected platform - check the selector, then copy the command again.'
+  } else {
     Write-Host "That URL did not return an icon: $IconUrl"
-    return
   }
+  return
 }
 
 # Named after its own bytes: Explorer caches a shortcut's icon by path, so reusing

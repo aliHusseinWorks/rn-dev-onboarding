@@ -928,7 +928,7 @@ export const TOOLS: Tool[] = [
       steps: [
         {
           command: 'herdr integration install claude',
-          note: 'Once per machine. Without it a restart returns your tabs as bare shells; with it each pane reopens in the conversation you left. Keep one conversation per pane — two panes sharing one and only one comes back.',
+          note: 'Once per machine, and again after upgrading herdr — the hook it installs is versioned, and a stale one stops reporting silently, which looks exactly like never having run this. `herdr integration status` prints `current` when it is fine. Without it a restart returns your tabs as bare shells; with it each pane reopens in the conversation you left. Keep one conversation per pane — two panes sharing one and only one comes back.',
         },
         {
           command: {
